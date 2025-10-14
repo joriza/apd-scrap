@@ -7,6 +7,9 @@ from requests.adapters import HTTPAdapter
 
 # urllib3 moved create_urllib3_context in recent versions.
 # This try/except block handles the import for different versions.
+
+## select * from ofertas where estado = "Publicada" and descdistrito="MERLO"
+
 try:
     from requests.packages.urllib3.util.ssl_ import create_urllib3_context
 except ImportError:
