@@ -1,5 +1,7 @@
 import json
 import requests
+import argparse
+import sqlite3
 from urllib.parse import urlencode
 from requests.adapters import HTTPAdapter
 
@@ -11,16 +13,6 @@ except ImportError:
     from urllib3.util.ssl_ import create_urllib3_context
 
 # --- Start of SSL/TLS Handshake Fix ---
-# The error 'SSLV3_ALERT_HANDSHAKE_FAILURE' indicates that the client (requests)
-# and the server could not agree on a secure connection protocol (cipher suite).
-# This happens because the server likely requires a specific configuration that
-# Python's default security settings don't provide out of the box.
-#
-# The custom adapter below tells 'requests' to offer a broader, more compatible
-# set of ciphers, allowing the handshake to succeed. This explains why the
-# original script used Playwright, as a full browser engine has a much more
-# advanced and flexible networking stack for handling such server-side quirks.
-
 CIPHERS = (
     'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+HIGH:'
     'DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:!aNULL:'
@@ -40,11 +32,56 @@ class CustomHttpAdapter(HTTPAdapter):
         return super(CustomHttpAdapter, self).proxy_manager_for(*args, **kwargs)
 # --- End of SSL/TLS Handshake Fix ---
 
+# --- Database Section ---
+# Definición de la lista de columnas para la tabla de ofertas
+columnas = [
+    'ige', 'estado', 'tipooferta', 'jornada', 'miercoles', 'martes',
+    'acargodireccion', 'cuilautor', 'supl_hasta', 'turno', 'idoferta',
+    'sabado', 'id', 'iddetalle', 'cargo', 'tomaposesion', 'supl_revista',
+    'domiciliodesempeno', 'reemp_apeynom', 'numdistrito', 'areaincumbencia',
+    'finoferta', 'observaciones', 'cupof', 'tipooferta_id', 'supl_desde',
+    'reemp_cuil', 'escuela', 'iniciooferta', 'hsmodulos', 'cursodivision',
+    'idsuna', 'descnivelmodalidad', 'lunes', 'infectocontagiosa',
+    'reemp_motivo', 'descdistrito', 'jueves', 'nivelmodalidad', 'viernes',
+    'descripcionarea', 'descripcioncargo', 'ult_movimiento', '_version_',
+    'timestamp'
+]
+
+def guardar_ofertas_en_db(ofertas):
+    """
+    Guarda o actualiza una lista de ofertas en la base de datos.
+    """
+    conn = None
+    try:
+        conn = sqlite3.connect('apd.db')
+        cursor = conn.cursor()
+
+        for oferta in ofertas:
+            # Usar INSERT OR REPLACE para insertar o actualizar basado en la clave primaria 'ige'
+            placeholders = ', '.join(['?'] * len(columnas))
+            sql = f"INSERT OR REPLACE INTO ofertas ({', '.join(columnas)}) VALUES ({placeholders})"
+            
+            # Se crea una tupla de valores en el orden correcto de las columnas
+            valores = tuple(oferta.get(col) for col in columnas)
+            
+            cursor.execute(sql, valores)
+
+        conn.commit()
+        print(f"\nSe han guardado/actualizado {len(ofertas)} registros en la base de datos 'apd.db'.")
+
+    except sqlite3.Error as e:
+        print(f"\nError al interactuar con la base de datos: {e}")
+    finally:
+        if conn:
+            conn.close()
+# --- End of Database Section ---
+
 
 def get_api_data(base_url, params):
     """
     Obtiene los datos de la API usando una solicitud HTTP directa con la librería requests.
-    Usa un adaptador custom para solucionar problemas de negociación SSL/TLS.
+    Usa un adaptador custom para solucionar problemas de negociación SSL/TLS y decodifica
+    manualmente la respuesta para corregir errores de caracteres.
     Retorna los datos como un diccionario de Python o None si falla.
     """
     request_params = params.copy()
@@ -52,7 +89,6 @@ def get_api_data(base_url, params):
     
     full_url = f"{base_url}?{urlencode(request_params)}"
 
-    # Se crea una sesión y se le monta el adaptador custom para la URL base.
     session = requests.Session()
     session.mount(base_url, CustomHttpAdapter())
 
@@ -66,7 +102,19 @@ def get_api_data(base_url, params):
         response = session.get(base_url, params=request_params, timeout=30, headers=headers)
         response.raise_for_status()
         
-        return response.json()
+        # --- Inicio de la corrección de codificación ---
+        try:
+            # 1. Intenta con el método estándar .json(), que es el más rápido.
+            return response.json()
+        except json.JSONDecodeError:
+            # 2. Si falla, es un problema de codificación. Confiamos en el análisis
+            #    de la librería 'chardet' (usado en response.apparent_encoding)
+            #    para obtener la codificación correcta y decodificar manualmente.
+            encoding = response.apparent_encoding
+            print(f"Advertencia: Falla en decodificación JSON. Reintentando con la codificación detectada: {encoding}")
+            decoded_content = response.content.decode(encoding)
+            return json.loads(decoded_content)
+        # --- Fin de la corrección de codificación ---
 
     except requests.exceptions.SSLError as e:
         print(f"Ocurrió un error de SSL irrecuperable: {e}")
@@ -77,24 +125,35 @@ def get_api_data(base_url, params):
     except requests.exceptions.RequestException as e:
         print(f"Ocurrió un error en la solicitud HTTP: {e}")
         return None
-    except json.JSONDecodeError:
-        print("Error: La respuesta recibida no es un JSON válido.")
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        print(f"Error final de decodificación: La respuesta del servidor no parece ser un JSON válido. Error: {e}")
         return None
     except Exception as e:
         print(f"Ocurrió un error inesperado: {e}")
         return None
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Descarga de ofertas de APD para un distrito específico.")
+    parser.add_argument(
+        '--distrito',
+        type=str,
+        default='merlo',
+        help='El distrito para el cual descargar las ofertas (ej: merlo, moron, laplata). Por defecto es "merlo".'
+    )
+    args = parser.parse_args()
+    distrito = args.distrito
+    print(f"Distrito seleccionado: {distrito.upper()}\n")
+
     base_api_url = "https://servicios3.abc.gob.ar/valoracion.docente/api/apd.oferta.encabezado/select"
     query_params = {
         'q': '*:*',
-        'fq': 'descdistrito:merlo'
+        'fq': f'descdistrito:{distrito}'
     }
 
     # --- Paso 1: Obtener el número total de registros ---
     print("--- Paso 1: Obteniendo el número total de registros ---")
     initial_params = query_params.copy()
-    initial_params['rows'] = 1  # Solo necesitamos 1 registro para obtener el total
+    initial_params['rows'] = 1
 
     initial_data = get_api_data(base_api_url, initial_params)
     total_records = 0
@@ -113,17 +172,25 @@ if __name__ == "__main__":
         full_params['rows'] = total_records
         api_data = get_api_data(base_api_url, full_params)
     else:
-        # Si no se encontraron registros, el resultado final es la respuesta inicial (que puede estar vacía)
         api_data = initial_data
 
     # --- Paso 3: Guardar los datos finales ---
     if api_data:
-        output_filename = "output.json"
+        # Guardar en archivo JSON
+        output_filename = f"output_{distrito}.json"
         with open(output_filename, "w", encoding="utf-8") as f:
             json.dump(api_data, f, ensure_ascii=False, indent=4)
         
         num_docs = len(api_data.get("response", {}).get("docs", []))
         print(f"\n¡Éxito! Los datos se han guardado en '{output_filename}'")
-        print(f"Se procesaron y guardaron {num_docs} de {total_records} registros.")
+        print(f"Se procesaron y guardaron {num_docs} de {total_records} registros en el archivo.")
+
+        # Guardar en Base de Datos
+        ofertas_docs = api_data.get('response', {}).get('docs', [])
+        if ofertas_docs:
+            guardar_ofertas_en_db(ofertas_docs)
+        else:
+            print(f"No se encontraron ofertas en la respuesta para guardar en la base de datos.")
+
     else:
         print("\nNo se pudieron obtener los datos finales de la API.")
