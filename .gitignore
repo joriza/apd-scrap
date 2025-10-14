@@ -1,0 +1,51 @@
+# Archivos de Bytecode y caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Entorno Virtual
+# Reemplaza 'venv' con el nombre de tu carpeta si es diferente
+venv/
+.venv/
+env/
+.env/
+ENV/
+.ENV/
+
+# Archivos de configuración de editores y IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Archivos de dependencias y paquetes
+pip-wheel-metadata/
+*.egg-info/
+dist/
+build/
+wheels/
+parts/
+bin/
+var/
+sdist/
+develop-eggs/
+*.egg
+
+# Archivos de bases de datos
+*.sqlite3
+*.db
+
+# Archivos de entorno (contienen secretos y configuraciones locales)
+.env
+.env.*
+!.env.example
+
+# Archivos de logs y temporales
+*.log
+*.tmp
+
+# Reportes de pruebas y cobertura
+.pytest_cache/
+.coverage
+htmlcov/
