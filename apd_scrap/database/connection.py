@@ -540,3 +540,116 @@ class DatabaseConnection(LoggerMixin):
             return 0
         finally:
             self.close()
+
+    def update_cuil_ganador(self) -> int:
+        """
+        Actualiza los campos de ganador consultando a la API.
+
+        Este método recorre cada oferta que cumple:
+        - ige > 4097270
+        - estado IN ('DESIGNADA', 'RENUNCIADA')
+        - cuil_ganador IS NULL
+
+        Para cada oferta, consulta a la API de postulantes:
+        - idoferta = ige
+        - designado = S
+
+        Rellena con datos del postulante designado:
+        - cuil_ganador ← postulante.cuil
+        - puntaje_ganador ← postulante.puntaje
+        - nombre_ganador ← postulante.nombres
+
+        Returns:
+            int: Número de ofertas actualizadas. Retorna 0 si hay error.
+
+        Example:
+            >>> db = DatabaseConnection()
+            >>> db.initialize_schema()
+            >>> actualizados = db.update_cuil_ganador()
+            >>> print(f"Ofertas actualizadas: {actualizados}")
+            Ofertas actualizadas: 3
+
+        Note:
+            Este método requiere que se haya importado APDScraper.
+            Consulta la API para cada oferta individualmente.
+        """
+        try:
+            # Importar aquí para evitar import circular
+            from apd_scrap.scrapers.apd_scraper import APDScraper
+            
+            conn = self.connect()
+            cursor = conn.cursor()
+            
+            # Obtener ofertas que cumplen condiciones
+            cursor.execute("""
+                SELECT ige 
+                FROM ofertas 
+                WHERE ige > 4097270 
+                  AND estado IN ('DESIGNADA', 'RENUNCIADA')
+                  AND cuil_ganador IS NULL
+                ORDER BY ige
+            """)
+            ofertas = [row[0] for row in cursor.fetchall()]
+            
+            if not ofertas:
+                self.logger.debug("No hay ofertas para actualizar (ige > 4097270, DESIGNADA/RENUNCIADA, sin ganador)")
+                return 0
+            
+            self.logger.info(f"Ofertas a procesar: {len(ofertas)} (ige > 4097270, DESIGNADA/RENUNCIADA)")
+            
+            scraper = APDScraper()
+            actualizados = 0
+            
+            for ige in ofertas:
+                try:
+                    # Consultar API de postulantes con designado=S
+                    data = scraper.fetch_postulantes(ige, designado='S')
+                    
+                    if data:
+                        docs = data.get('response', {}).get('docs', [])
+                        
+                        # Usar el primer postulante (debe ser el designado)
+                        if docs:
+                            postulante_designado = docs[0]
+                            
+                            # Actualizar campos ganador
+                            cursor.execute("""
+                                UPDATE ofertas 
+                                SET cuil_ganador = ?,
+                                    puntaje_ganador = ?,
+                                    nombre_ganador = ?
+                                WHERE ige = ?
+                            """, (
+                                postulante_designado.get('cuil'),
+                                postulante_designado.get('puntaje'),
+                                postulante_designado.get('nombres'),
+                                ige
+                            ))
+                            actualizados += 1
+                            self.logger.debug(
+                                f"IGE {ige}: ganador {postulante_designado.get('nombres')}"
+                            )
+                        else:
+                            self.logger.debug(f"IGE {ige}: no hay postulante designado en API")
+                    else:
+                        self.logger.warning(f"IGE {ige}: no se obtuvieron postulantes de la API")
+                        
+                except Exception as e:
+                    self.logger.error(f"Error al procesar IGE {ige}: {e}")
+                    continue
+            
+            conn.commit()
+            scraper.close()
+            
+            if actualizados > 0:
+                self.logger.info(
+                    f"Ganador actualizado: {actualizados} ofertas (consultando API individualmente)"
+                )
+            
+            return actualizados
+
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al actualizar ganadores: {e}")
+            return 0
+        finally:
+            self.close()

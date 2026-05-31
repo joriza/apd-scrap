@@ -351,16 +351,18 @@ class APDScraper(LoggerMixin):
     def fetch_postulantes(
         self,
         ige: int,
+        designado: Optional[str] = None,
     ) -> Optional[dict[str, Any]]:
         """
         Obtiene todos los postulantes de una oferta específica.
 
         Este método consulta la API de postulantes utilizando el IGE
-        de la oferta como filtro. Usa una sesión temporal con adaptador
-        SSL legacy para compatibilidad con el endpoint de postulantes.
+        de la oferta como filtro. Opcionalmente puede filtrar por
+        estado de designación.
 
         Args:
             ige: Identificador único de la oferta (idoferta)
+            designado: Filtro opcional de designación ('S' para designado, None para todos)
 
         Returns:
             dict: Respuesta de la API con los postulantes, o None si hay error
@@ -368,6 +370,10 @@ class APDScraper(LoggerMixin):
         Example:
             >>> scraper = APDScraper()
             >>> data = scraper.fetch_postulantes(4067362)
+            >>> postulantes = data['response']['docs']
+            >>> 
+            >>> # Solo postulantes designados
+            >>> data = scraper.fetch_postulantes(4067362, designado='S')
             >>> postulantes = data['response']['docs']
         """
         try:
@@ -381,6 +387,10 @@ class APDScraper(LoggerMixin):
                 "json.nl": "map",
                 "sort": "orden asc",
             }
+            
+            # Agregar filtro de designado si se especifica
+            if designado is not None:
+                params["fq"] = f"designado:{designado}"
             
             response = session.get(
                 self.config.POSTULANTES_API_URL,
