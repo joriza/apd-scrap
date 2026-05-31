@@ -87,6 +87,9 @@ def main() -> int:
             with DatabaseConnection() as db:
                 # Inicializar esquema si no existe
                 db.initialize_schema()
+                
+                # Poblar tabla de estados si no existe
+                db.populate_estados()
 
                 # Guardar ofertas
                 registros_guardados = db.save_ofertas(ofertas_docs, distrito)

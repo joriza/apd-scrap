@@ -8,7 +8,14 @@ de base de datos, incluyendo inicialización e inserción de ofertas.
 import sqlite3
 from typing import Any, Optional
 
-from apd_scrap.database.schema import COLUMNAS, CREATE_TABLE_SQL, get_insert_sql
+from apd_scrap.database.schema import (
+    COLUMNAS,
+    CREATE_TABLE_SQL,
+    CREATE_TABLE_ESTADOS_SQL,
+    get_insert_sql,
+    get_insert_estados_sql,
+    get_estados_values,
+)
 from apd_scrap.utils.logging import LoggerMixin
 
 
@@ -148,7 +155,8 @@ class DatabaseConnection(LoggerMixin):
         Inicializa el esquema de la base de datos si no existe.
 
         Este método ejecuta la sentencia SQL CREATE TABLE IF NOT EXISTS
-        para crear la tabla 'ofertas' con todas las columnas necesarias.
+        para crear la tabla 'estados' y la tabla 'ofertas' con todas las
+        columnas necesarias.
 
         Returns:
             bool: True si el esquema se inicializó correctamente,
@@ -163,12 +171,48 @@ class DatabaseConnection(LoggerMixin):
         try:
             conn = self.connect()
             cursor = conn.cursor()
+            cursor.execute(CREATE_TABLE_ESTADOS_SQL)
             cursor.execute(CREATE_TABLE_SQL)
             conn.commit()
             self.logger.info("Esquema de base de datos inicializado correctamente")
             return True
         except sqlite3.Error as e:
             self.logger.error(f"Error al inicializar el esquema: {e}")
+            return False
+        finally:
+            self.close()
+
+    def populate_estados(self) -> bool:
+        """
+        Puebla la tabla de estados con los valores válidos.
+
+        Este método inserta todos los estados válidos definidos en
+        ESTADOS_VALIDOS en la tabla 'estados'.
+
+        Returns:
+            bool: True si los estados se insertaron correctamente,
+                False si hubo un error
+
+        Example:
+            >>> db = DatabaseConnection(":memory:")
+            >>> db.initialize_schema()
+            >>> success = db.populate_estados()
+            >>> print(f"Estados insertados: {success}")
+            Estados insertados: True
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            sql = get_insert_estados_sql()
+            estados_values = get_estados_values()
+            cursor.execute(sql, estados_values)
+            conn.commit()
+            self.logger.info(
+                f"Tabla de estados poblada con {len(estados_values)} estados válidos"
+            )
+            return True
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al poblar la tabla de estados: {e}")
             return False
         finally:
             self.close()

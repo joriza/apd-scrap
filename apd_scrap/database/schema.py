@@ -55,7 +55,25 @@ COLUMNAS: list[str] = [
     "timestamp",
 ]
 
-# SQL para crear la tabla
+# Estados válidos para las ofertas
+ESTADOS_VALIDOS: list[str] = [
+    "Anulada",
+    "Desierta",
+    "DESIGNADA",
+    "RENUNCIADA",
+    "Finalizada",
+    "Publicada",
+    "Cerrada",
+]
+
+# SQL para crear la tabla de estados
+CREATE_TABLE_ESTADOS_SQL: str = """
+CREATE TABLE IF NOT EXISTS estados (
+    estado TEXT PRIMARY KEY
+);
+"""
+
+# SQL para crear la tabla de ofertas
 CREATE_TABLE_SQL: str = """
 CREATE TABLE IF NOT EXISTS ofertas (
     ige INTEGER PRIMARY KEY,
@@ -102,7 +120,8 @@ CREATE TABLE IF NOT EXISTS ofertas (
     descripcioncargo TEXT,
     ult_movimiento TEXT,
     _version_ INTEGER,
-    timestamp TEXT
+    timestamp TEXT,
+    FOREIGN KEY (estado) REFERENCES estados(estado)
 );
 """
 
@@ -126,3 +145,34 @@ def get_insert_sql() -> str:
     placeholders: str = ", ".join(["?"] * len(COLUMNAS))
     columns: str = ", ".join(COLUMNAS)
     return f"INSERT OR REPLACE INTO ofertas ({columns}) VALUES ({placeholders})"
+
+
+def get_insert_estados_sql() -> str:
+    """
+    Genera la sentencia SQL para insertar estados válidos.
+
+    Returns:
+        str: Sentencia SQL para insertar estados válidos
+
+    Example:
+        >>> sql = get_insert_estados_sql()
+        >>> print(sql)
+        INSERT OR REPLACE INTO estados (estado) VALUES (?), (?), ...
+    """
+    placeholders: str = ", ".join(["(?)"] * len(ESTADOS_VALIDOS))
+    return f"INSERT OR REPLACE INTO estados (estado) VALUES {placeholders}"
+
+
+def get_estados_values() -> list[str]:
+    """
+    Obtiene la lista de valores de estados válidos.
+
+    Returns:
+        list[str]: Lista de estados válidos
+
+    Example:
+        >>> estados = get_estados_values()
+        >>> print(estados)
+        ['Anulada', 'Desierta', 'DESIGNADA', ...]
+    """
+    return ESTADOS_VALIDOS[:]
