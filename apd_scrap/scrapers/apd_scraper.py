@@ -12,9 +12,8 @@ import requests
 
 from apd_scrap.config import Config
 from apd_scrap.utils.logging import LoggerMixin
-from apd_scrap.utils.ssl_adapter import CustomHttpAdapter
-from apd_scrap.utils.retry import retry_with_backoff, RetryError
-from apd_scrap.utils.retry import retry_with_backoff, RetryConfig, RetryError
+from apd_scrap.utils.ssl_adapter import CustomHttpAdapter, LegacyHttpAdapter
+from apd_scrap.utils.retry import retry_with_backoff, RetryError, RetryConfig
 
 
 class APIResponse:
@@ -357,7 +356,8 @@ class APDScraper(LoggerMixin):
         Obtiene todos los postulantes de una oferta específica.
 
         Este método consulta la API de postulantes utilizando el IGE
-        de la oferta como filtro.
+        de la oferta como filtro. Usa una sesión temporal con adaptador
+        SSL legacy para compatibilidad con el endpoint de postulantes.
 
         Args:
             ige: Identificador único de la oferta (idoferta)
@@ -371,13 +371,32 @@ class APDScraper(LoggerMixin):
             >>> postulantes = data['response']['docs']
         """
         try:
+            # Crear sesión temporal con adaptador SSL legacy
+            session = requests.Session()
+            session.mount("https://", LegacyHttpAdapter())
+            
             params: dict[str, Any] = {
                 "q": "*:*",
                 "fq": f"idoferta:{ige}",
                 "json.nl": "map",
                 "sort": "orden asc",
             }
-            return self._fetch_data(params, url_override=self.config.POSTULANTES_API_URL)
-        except (requests.RequestException, KeyError) as e:
+            
+            response = session.get(
+                self.config.POSTULANTES_API_URL,
+                params=params,
+                timeout=self.config.API_TIMEOUT,
+            )
+            response.raise_for_status()
+            
+            try:
+                return response.json()
+            except json.JSONDecodeError:
+                content = response.content
+                apparent_encoding = response.apparent_encoding
+                decoded = content.decode(apparent_encoding or 'utf-8', errors='replace')
+                return json.loads(decoded)
+                
+        except (requests.RequestException, KeyError, json.JSONDecodeError) as e:
             self.logger.error(f"Error al obtener postulantes para IGE {ige}: {e}")
             return None

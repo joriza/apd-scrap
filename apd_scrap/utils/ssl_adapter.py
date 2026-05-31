@@ -15,6 +15,8 @@ from typing import Any
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
 
+import ssl
+
 try:
     from requests.packages.urllib3.util.ssl_ import create_urllib3_context
 except ImportError:
@@ -82,6 +84,65 @@ class CustomHttpAdapter(HTTPAdapter):
             y se pasa al pool manager a través del parámetro 'ssl_context'.
         """
         context = create_urllib3_context(ciphers=CIPHERS)
+        kwargs["ssl_context"] = context
+        return super().init_poolmanager(
+            connections, maxsize, block, **kwargs
+        )
+
+
+class LegacyHttpAdapter(HTTPAdapter):
+    """
+    Adaptador HTTP para servidores con configuración SSL legacy.
+
+    Este adaptador es necesario para conectarse a endpoints que requieren
+    configuraciones SSL más antiguas o inseguras, como el endpoint de
+    postulantes del sistema APD.
+
+    Características:
+    - Usa TLS 1.2 como versión mínima
+    - Configura SECLEVEL=1 para permitir ciphers más antiguos
+    - No verifica hostname (compatibilidad con servidores legacy)
+
+    Example:
+        >>> import requests
+        >>> from apd_scrap.utils.ssl_adapter import LegacyHttpAdapter
+        >>>
+        >>> session = requests.Session()
+        >>> session.mount("https://servicios3.abc.gob.ar/", LegacyHttpAdapter())
+        >>>
+        >>> response = session.get("https://servicios3.abc.gob.ar/...")
+
+    Note:
+        Este adaptador es menos seguro que CustomHttpAdapter y solo debe
+        usarse cuando el servidor no soporta configuraciones SSL modernas.
+    """
+
+    def init_poolmanager(
+        self, connections: int, maxsize: int, block: bool = False, **kwargs: Any
+    ) -> PoolManager:
+        """
+        Inicializa el pool manager con contexto SSL legacy.
+
+        Este método crea un contexto SSL con configuración legacy:
+        - TLS 1.2 como versión mínima
+        - SECLEVEL=1 para permitir ciphers antiguos
+        - Verificación de hostname desactivada
+
+        Args:
+            connections: Número de conexiones a mantener en el pool
+            maxsize: Número máximo de conexiones en el pool
+            block: Si True, bloquea cuando el pool está lleno
+            **kwargs: Argumentos adicionales pasados al pool manager
+
+        Returns:
+            PoolManager: Pool manager configurado con contexto SSL legacy
+        """
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.set_ciphers("DEFAULT@SECLEVEL=1")
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+
         kwargs["ssl_context"] = context
         return super().init_poolmanager(
             connections, maxsize, block, **kwargs
