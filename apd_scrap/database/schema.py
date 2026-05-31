@@ -16,6 +16,7 @@ COLUMNAS: list[str] = [
     "martes",
     "acargodireccion",
     "cuilautor",
+    "cuil_puntero",
     "supl_hasta",
     "turno",
     "idoferta",
@@ -109,6 +110,7 @@ CREATE TABLE IF NOT EXISTS ofertas (
     martes TEXT,
     acargodireccion TEXT,
     cuilautor TEXT,
+    cuil_puntero TEXT,
     supl_hasta TEXT,
     turno TEXT,
     idoferta INTEGER,
@@ -230,6 +232,12 @@ def get_estados_values() -> list[str]:
         ['Anulada', 'Desierta', 'DESIGNADA', ...]
     """
     return ESTADOS_VALIDOS[:]
+
+
+# SQL para migración - agregar cuil_puntero a ofertas existentes
+ALTER_TABLE_ADD_CUIL_PUNTERO: str = """
+ALTER TABLE ofertas ADD COLUMN cuil_puntero TEXT;
+"""
 
 
 def get_insert_postulantes_sql() -> str:

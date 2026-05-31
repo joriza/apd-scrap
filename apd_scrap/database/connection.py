@@ -14,6 +14,7 @@ from apd_scrap.database.schema import (
     CREATE_TABLE_ESTADOS_SQL,
     CREATE_TABLE_POSTULANTES_SQL,
     COLUMNAS_POSTULANTES,
+    ALTER_TABLE_ADD_CUIL_PUNTERO,
     get_insert_sql,
     get_insert_estados_sql,
     get_insert_postulantes_sql,
@@ -177,6 +178,17 @@ class DatabaseConnection(LoggerMixin):
             cursor.execute(CREATE_TABLE_ESTADOS_SQL)
             cursor.execute(CREATE_TABLE_SQL)
             cursor.execute(CREATE_TABLE_POSTULANTES_SQL)
+            
+            # Migración: agregar cuil_puntero si no existe
+            cursor.execute("PRAGMA table_info(ofertas)")
+            columnas_existentes = [row[1] for row in cursor.fetchall()]
+            if "cuil_puntero" not in columnas_existentes:
+                try:
+                    cursor.execute(ALTER_TABLE_ADD_CUIL_PUNTERO)
+                    self.logger.info("Columna cuil_puntero agregada a la tabla ofertas")
+                except sqlite3.OperationalError as e:
+                    self.logger.warning(f"No se pudo agregar cuil_puntero: {e}")
+            
             conn.commit()
             self.logger.debug("Esquema de base de datos inicializado correctamente")
             return True
@@ -399,6 +411,90 @@ class DatabaseConnection(LoggerMixin):
             return result[0] if result else 0
         except sqlite3.Error:
             self.logger.error(f"Error al obtener conteo de registros para distrito {distrito}")
+            return 0
+        finally:
+            self.close()
+
+    def update_cuil_puntero(self) -> int:
+        """
+        Actualiza el campo cuil_puntero en la tabla ofertas.
+
+        Este método actualiza el campo cuil_puntero de la tabla ofertas
+        con el CUIL del postulante designado (designado='S'). Si no hay
+        postulante designado, usa el CUIL del postulante con mayor puntaje.
+
+        Returns:
+            int: Número de ofertas actualizadas. Retorna 0 si hay error.
+
+        Example:
+            >>> db = DatabaseConnection()
+            >>> db.initialize_schema()
+            >>> # Supongamos que hay postulantes para algunas ofertas
+            >>> actualizados = db.update_cuil_puntero()
+            >>> print(f"Ofertas actualizadas: {actualizados}")
+            Ofertas actualizadas: 15
+
+        Note:
+            Este método busca en la tabla postulantes y actualiza:
+            1. Ofertas con postulante designado (designado='S')
+            2. Ofertas sin designado pero con postulante de mayor puntaje
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            actualizados = 0
+
+            # Primero: actualizar ofertas con postulante designado
+            update_designado = """
+            UPDATE ofertas
+            SET cuil_puntero = (
+                SELECT p.cuil
+                FROM postulantes p
+                WHERE p.ige = ofertas.ige AND p.designado = 'S'
+                LIMIT 1
+            )
+            WHERE ige IN (
+                SELECT DISTINCT ige FROM postulantes WHERE designado = 'S'
+            ) AND cuil_puntero IS NULL;
+            """
+            cursor.execute(update_designado)
+            designados = cursor.rowcount
+            actualizados += designados
+
+            # Segundo: actualizar ofertas sin designado (usar mayor puntaje)
+            update_max_puntaje = """
+            UPDATE ofertas
+            SET cuil_puntero = (
+                SELECT p.cuil
+                FROM postulantes p
+                WHERE p.ige = ofertas.ige
+                ORDER BY p.puntaje DESC
+                LIMIT 1
+            )
+            WHERE ige IN (
+                SELECT DISTINCT ige FROM postulantes WHERE ige NOT IN (
+                    SELECT DISTINCT ige FROM postulantes WHERE designado = 'S'
+                )
+            ) AND cuil_puntero IS NULL;
+            """
+            cursor.execute(update_max_puntaje)
+            max_puntaje = cursor.rowcount
+            actualizados += max_puntaje
+
+            conn.commit()
+
+            if actualizados > 0:
+                self.logger.info(
+                    f"cuil_puntero actualizado: {designados} designados, "
+                    f"{max_puntaje} por puntaje (total: {actualizados})"
+                )
+            else:
+                self.logger.debug("No se actualizaron cuil_puntero (no hay postulantes nuevos)")
+
+            return actualizados
+
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al actualizar cuil_puntero: {e}")
             return 0
         finally:
             self.close()
