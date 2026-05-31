@@ -18,6 +18,8 @@ from apd_scrap.database.schema import (
     ALTER_TABLE_ADD_CUIL_GANADOR,
     ALTER_TABLE_ADD_PUNTAJE_PUNTERO,
     ALTER_TABLE_ADD_NOMBRE_PUNTERO,
+    ALTER_TABLE_ADD_PUNTAJE_GANADOR,
+    ALTER_TABLE_ADD_NOMBRE_GANADOR,
     get_insert_sql,
     get_insert_estados_sql,
     get_insert_postulantes_sql,
@@ -191,6 +193,8 @@ class DatabaseConnection(LoggerMixin):
                 ("cuil_ganador", ALTER_TABLE_ADD_CUIL_GANADOR),
                 ("puntaje_puntero", ALTER_TABLE_ADD_PUNTAJE_PUNTERO),
                 ("nombre_puntero", ALTER_TABLE_ADD_NOMBRE_PUNTERO),
+                ("puntaje_ganador", ALTER_TABLE_ADD_PUNTAJE_GANADOR),
+                ("nombre_ganador", ALTER_TABLE_ADD_NOMBRE_GANADOR),
             ]
             
             for nombre_columna, sql_migracion in migraciones:

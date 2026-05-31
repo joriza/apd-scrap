@@ -20,6 +20,8 @@ COLUMNAS: list[str] = [
     "cuil_ganador",
     "puntaje_puntero",
     "nombre_puntero",
+    "puntaje_ganador",
+    "nombre_ganador",
     "supl_hasta",
     "turno",
     "idoferta",
@@ -117,6 +119,8 @@ CREATE TABLE IF NOT EXISTS ofertas (
     cuil_ganador TEXT,
     puntaje_puntero REAL,
     nombre_puntero TEXT,
+    puntaje_ganador REAL,
+    nombre_ganador TEXT,
     supl_hasta TEXT,
     turno TEXT,
     idoferta INTEGER,
@@ -255,6 +259,14 @@ ALTER TABLE ofertas ADD COLUMN puntaje_puntero REAL;
 
 ALTER_TABLE_ADD_NOMBRE_PUNTERO: str = """
 ALTER TABLE ofertas ADD COLUMN nombre_puntero TEXT;
+"""
+
+ALTER_TABLE_ADD_PUNTAJE_GANADOR: str = """
+ALTER TABLE ofertas ADD COLUMN puntaje_ganador REAL;
+"""
+
+ALTER_TABLE_ADD_NOMBRE_GANADOR: str = """
+ALTER TABLE ofertas ADD COLUMN nombre_ganador TEXT;
 """
 
 
