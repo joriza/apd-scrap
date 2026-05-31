@@ -1,0 +1,53 @@
+# Pre-commit hooks para APD-Scrap
+# Instalar: pip install pre-commit
+# Activar: pre-commit install
+
+repos:
+  # Black: Formateador de código Python
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        language_version: python3.9
+        args: [--line-length=100]
+
+  # Ruff: Linter rápido de Python (reemplaza flake8, isort, pyupgrade)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi, jupyter]
+
+  # mypy: Type checking estático
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests]
+        args: [--ignore-missing-imports]
+
+  # Check YAML, JSON, TOML syntax
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  # Security checks
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.6
+    hooks:
+      - id: bandit
+        args: [-c, pyproject.toml]
+        additional_dependencies: ["bandit[toml]"]
+
+# Configuración local
+default_stages: [commit]
+fail_fast: false

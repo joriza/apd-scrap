@@ -5,21 +5,54 @@ Este módulo contiene todas las definiciones relacionadas con el esquema
 de la base de datos de APD-Scrap.
 """
 
-from typing import List, Literal
-
 
 # Lista de columnas de la tabla ofertas
-COLUMNAS: List[str] = [
-    'ige', 'estado', 'tipooferta', 'jornada', 'miercoles', 'martes',
-    'acargodireccion', 'cuilautor', 'supl_hasta', 'turno', 'idoferta',
-    'sabado', 'id', 'iddetalle', 'cargo', 'tomaposesion', 'supl_revista',
-    'domiciliodesempeno', 'reemp_apeynom', 'numdistrito', 'areaincumbencia',
-    'finoferta', 'observaciones', 'cupof', 'tipooferta_id', 'supl_desde',
-    'reemp_cuil', 'escuela', 'iniciooferta', 'hsmodulos', 'cursodivision',
-    'idsuna', 'descnivelmodalidad', 'lunes', 'infectocontagiosa',
-    'reemp_motivo', 'descdistrito', 'jueves', 'nivelmodalidad', 'viernes',
-    'descripcionarea', 'descripcioncargo', 'ult_movimiento', '_version_',
-    'timestamp'
+COLUMNAS: list[str] = [
+    "ige",
+    "estado",
+    "tipooferta",
+    "jornada",
+    "miercoles",
+    "martes",
+    "acargodireccion",
+    "cuilautor",
+    "supl_hasta",
+    "turno",
+    "idoferta",
+    "sabado",
+    "id",
+    "iddetalle",
+    "cargo",
+    "tomaposesion",
+    "supl_revista",
+    "domiciliodesempeno",
+    "reemp_apeynom",
+    "numdistrito",
+    "areaincumbencia",
+    "finoferta",
+    "observaciones",
+    "cupof",
+    "tipooferta_id",
+    "supl_desde",
+    "reemp_cuil",
+    "escuela",
+    "iniciooferta",
+    "hsmodulos",
+    "cursodivision",
+    "idsuna",
+    "descnivelmodalidad",
+    "lunes",
+    "infectocontagiosa",
+    "reemp_motivo",
+    "descdistrito",
+    "jueves",
+    "nivelmodalidad",
+    "viernes",
+    "descripcionarea",
+    "descripcioncargo",
+    "ult_movimiento",
+    "_version_",
+    "timestamp",
 ]
 
 # SQL para crear la tabla
@@ -77,19 +110,19 @@ CREATE TABLE IF NOT EXISTS ofertas (
 def get_insert_sql() -> str:
     """
     Genera la sentencia SQL para insertar/actualizar ofertas.
-    
+
     Esta función genera dinámicamente la sentencia INSERT OR REPLACE
     utilizando todas las columnas definidas en COLUMNAS con el
     número apropiado de placeholders '?'.
-    
+
     Returns:
         str: Sentencia SQL preparada con placeholders
-        
+
     Example:
         >>> sql = get_insert_sql()
         >>> print(sql)
         INSERT OR REPLACE INTO ofertas (ige, estado, ...) VALUES (?, ?, ...)
     """
-    placeholders: str = ', '.join(['?'] * len(COLUMNAS))
-    columns: str = ', '.join(COLUMNAS)
+    placeholders: str = ", ".join(["?"] * len(COLUMNAS))
+    columns: str = ", ".join(COLUMNAS)
     return f"INSERT OR REPLACE INTO ofertas ({columns}) VALUES ({placeholders})"

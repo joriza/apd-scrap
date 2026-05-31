@@ -54,6 +54,19 @@ develop-eggs/
 # Reportes de pruebas y cobertura
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 coverage.xml
+.xml
 .pytest_cache/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Bandit
+.bandit
+
+# Ruff
+.ruff_cache/

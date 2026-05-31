@@ -1,7 +1,17 @@
-requests>=2.31.0
-pyyaml>=6.0.1
-python-dotenv>=1.0.0
+# Dependencias de desarrollo
+# Para producción, usar requirements-prod.txt
+
+# Testing
 pytest>=7.4.3
 pytest-mock>=3.12.0
 pytest-cov>=4.1.0
 coverage>=7.3.2
+
+# Formateo y linting
+black>=24.1.1
+ruff>=0.1.9
+mypy>=1.8.0
+bandit>=1.7.6
+
+# Herramientas de desarrollo
+pre-commit>=3.6.0
