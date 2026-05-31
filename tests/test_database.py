@@ -73,11 +73,10 @@ class TestDatabaseConnection:
     
     def test_initialize_schema_ejecuta_create_table(self, db_connection):
         """Verifica que initialize_schema ejecute CREATE TABLE."""
-        with patch.object(db_connection, 'connect') as mock_connect:
-            mock_conn = Mock()
+        with patch.object(db_connection, 'connect', return_value=Mock()) as mock_connect:
+            mock_conn = mock_connect.return_value
             mock_cursor = Mock()
             mock_conn.cursor.return_value = mock_cursor
-            mock_connect.return_value.__enter__.return_value = mock_conn
             
             result = db_connection.initialize_schema()
             

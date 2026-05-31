@@ -5,8 +5,11 @@ Este módulo contiene todas las definiciones relacionadas con el esquema
 de la base de datos de APD-Scrap.
 """
 
+from typing import List, Literal
+
+
 # Lista de columnas de la tabla ofertas
-COLUMNAS = [
+COLUMNAS: List[str] = [
     'ige', 'estado', 'tipooferta', 'jornada', 'miercoles', 'martes',
     'acargodireccion', 'cuilautor', 'supl_hasta', 'turno', 'idoferta',
     'sabado', 'id', 'iddetalle', 'cargo', 'tomaposesion', 'supl_revista',
@@ -20,7 +23,7 @@ COLUMNAS = [
 ]
 
 # SQL para crear la tabla
-CREATE_TABLE_SQL = """
+CREATE_TABLE_SQL: str = """
 CREATE TABLE IF NOT EXISTS ofertas (
     ige INTEGER PRIMARY KEY,
     estado TEXT,
@@ -75,8 +78,18 @@ def get_insert_sql() -> str:
     """
     Genera la sentencia SQL para insertar/actualizar ofertas.
     
+    Esta función genera dinámicamente la sentencia INSERT OR REPLACE
+    utilizando todas las columnas definidas en COLUMNAS con el
+    número apropiado de placeholders '?'.
+    
     Returns:
-        Sentencia SQL preparada con placeholders
+        str: Sentencia SQL preparada con placeholders
+        
+    Example:
+        >>> sql = get_insert_sql()
+        >>> print(sql)
+        INSERT OR REPLACE INTO ofertas (ige, estado, ...) VALUES (?, ?, ...)
     """
-    placeholders = ', '.join(['?'] * len(COLUMNAS))
-    return f"INSERT OR REPLACE INTO ofertas ({', '.join(COLUMNAS)}) VALUES ({placeholders})"
+    placeholders: str = ', '.join(['?'] * len(COLUMNAS))
+    columns: str = ', '.join(COLUMNAS)
+    return f"INSERT OR REPLACE INTO ofertas ({columns}) VALUES ({placeholders})"

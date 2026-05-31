@@ -6,7 +6,7 @@ de base de datos, incluyendo inicialización e inserción de ofertas.
 """
 
 import sqlite3
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from apd_scrap.database.schema import COLUMNAS, CREATE_TABLE_SQL, get_insert_sql
 from apd_scrap.utils.logging import LoggerMixin
@@ -15,127 +15,288 @@ from apd_scrap.utils.logging import LoggerMixin
 class DatabaseConnection(LoggerMixin):
     """
     Maneja la conexión y operaciones con la base de datos SQLite.
+    
+    Esta clase proporciona una interfaz orientada a objetos para interactuar
+    con la base de datos de APD-Scrap. Implementa el protocolo de context
+    manager para manejo automático de conexiones y soporta transacciones
+    implícitas a través de commits.
+    
+    Attributes:
+        db_path (str): Ruta al archivo de base de datos SQLite
+        connection (Optional[sqlite3.Connection]): Conexión activa o None
+        
+    Example:
+        >>> # Uso simple
+        >>> db = DatabaseConnection("my_database.db")
+        >>> db.initialize_schema()
+        >>> ofertas = [{'ige': 1, 'estado': 'Publicada'}]
+        >>> db.save_ofertas(ofertas)
+        >>> db.close()
+        
+        >>> # Uso con context manager (recomendado)
+        >>> with DatabaseConnection() as db:
+        ...     db.initialize_schema()
+        ...     ofertas = [{'ige': 1, 'estado': 'Publicada'}]
+        ...     registros = db.save_ofertas(ofertas, distrito='MERLO')
+        
+        >>> # Consultar datos
+        >>> with DatabaseConnection() as db:
+        ...     total = db.get_count()
+        ...     merlo_count = db.get_distrito_count('MERLO')
     """
     
-    def __init__(self, db_path: str = "apd.db"):
+    def __init__(self, db_path: str = "apd.db") -> None:
         """
-        Inicializa la conexión a la base de datos.
+        Inicializa una nueva conexión a la base de datos.
         
         Args:
-            db_path: Ruta al archivo de base de datos
+            db_path: Ruta al archivo de base de datos SQLite. Si no existe,
+                se creará al ejecutar initialize_schema()
+                (default: "apd.db")
+                
+        Example:
+            >>> # Usar path por defecto
+            >>> db = DatabaseConnection()
+            
+            >>> # Usar path personalizado
+            >>> db = DatabaseConnection("/path/to/database.db")
+            
+            >>> # Base de datos en memoria (útil para tests)
+            >>> db = DatabaseConnection(":memory:")
         """
-        self.db_path = db_path
-        self.connection = None
+        self.db_path: str = db_path
+        self.connection: Optional[sqlite3.Connection] = None
     
     def connect(self) -> sqlite3.Connection:
         """
-        Establece conexión con la base de datos.
+        Establece una conexión con la base de datos.
+        
+        Este método abre una conexión SQLite y la guarda en el atributo
+        `connection`. Si ya existe una conexión, la cierra antes de crear
+        una nueva.
         
         Returns:
-            Conexión SQLite activa
+            sqlite3.Connection: Conexión SQLite activa y abierta
+            
+        Raises:
+            sqlite3.Error: Si hay un error al abrir la base de datos
+            
+        Note:
+            Es recomendable usar el context manager (`with statement`) en
+            lugar de llamar a connect() y close() manualmente.
+            
+        Example:
+            >>> db = DatabaseConnection()
+            >>> conn = db.connect()
+            >>> # Usar conn para operaciones SQL
+            >>> db.close()
         """
         self.connection = sqlite3.connect(self.db_path)
         return self.connection
     
     def close(self) -> None:
-        """Cierra la conexión con la base de datos."""
+        """
+        Cierra la conexión con la base de datos.
+        
+        Este método cierra la conexión activa si existe y establece
+        `self.connection` a None. Es seguro llamarlo múltiples veces
+        o cuando no hay conexión activa.
+            
+        Example:
+            >>> db = DatabaseConnection()
+            >>> db.connect()
+            >>> db.close()
+            >>> db.close()  # Llamada adicional, no hay error
+        """
         if self.connection:
             self.connection.close()
             self.connection = None
     
-    def __enter__(self):
-        """Context manager entry."""
+    def __enter__(self) -> 'DatabaseConnection':
+        """
+        Context manager entry - establece conexión.
+        
+        Returns:
+            DatabaseConnection: La instancia misma para usar en with block
+            
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     # db.connection ya está establecida
+            ...     db.initialize_schema()
+        """
         self.connect()
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any]
+    ) -> None:
+        """
+        Context manager exit - cierra conexión.
+        
+        Args:
+            exc_type: Tipo de excepción si ocurrió
+            exc_val: Valor de excepción si ocurrió
+            exc_tb: Traceback de excepción si ocurrió
+            
+        Note:
+            Las excepciones no se suprimen, se propagan normalmente.
+        """
         self.close()
     
     def initialize_schema(self) -> bool:
         """
         Inicializa el esquema de la base de datos si no existe.
         
+        Este método ejecuta la sentencia SQL CREATE TABLE IF NOT EXISTS
+        para crear la tabla 'ofertas' con todas las columnas necesarias.
+        
         Returns:
-            True si se inicializó correctamente
+            bool: True si el esquema se inicializó correctamente,
+                False si hubo un error
+                
+        Example:
+            >>> db = DatabaseConnection(":memory:")
+            >>> success = db.initialize_schema()
+            >>> print(f"Esquema inicializado: {success}")
+            Esquema inicializado: True
         """
         try:
-            with self.connect() as conn:
-                cursor = conn.cursor()
-                cursor.execute(CREATE_TABLE_SQL)
-                conn.commit()
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(CREATE_TABLE_SQL)
+            conn.commit()
+            self.logger.info("Esquema de base de datos inicializado correctamente")
             return True
         except sqlite3.Error as e:
             self.logger.error(f"Error al inicializar el esquema: {e}")
             return False
+        finally:
+            self.close()
     
-    def save_ofertas(self, ofertas: List[Dict[str, Any]], distrito: str = None) -> int:
+    def save_ofertas(
+        self,
+        ofertas: List[Dict[str, Any]],
+        distrito: Optional[str] = None
+    ) -> int:
         """
         Guarda o actualiza una lista de ofertas en la base de datos.
         
+        Este método inserta o actualiza ofertas en la tabla 'ofertas'
+        usando INSERT OR REPLACE, lo que significa que si un registro
+        con el mismo valor de 'ige' ya existe, será actualizado.
+        
         Args:
-            ofertas: Lista de diccionarios con datos de ofertas
-            distrito: Nombre del distrito (opcional, para logging)
-            
+            ofertas: Lista de diccionarios donde cada diccionario
+                representa una oferta con sus campos como claves
+            distrito: Nombre del distrito (opcional, solo para logging)
+                
         Returns:
-            Número de registros guardados/actualizados
+            int: Número de registros guardados/actualizados. Retorna 0
+                si la lista está vacía o hubo un error
+                
+        Example:
+            >>> ofertas = [
+            ...     {'ige': 1, 'estado': 'Publicada', 'cargo': 'Profesor'},
+            ...     {'ige': 2, 'estado': 'Desierta', 'cargo': 'Ayudante'}
+            ... ]
+            >>> with DatabaseConnection() as db:
+            ...     db.initialize_schema()
+            ...     registros = db.save_ofertas(ofertas, distrito='MERLO')
+            ...     print(f"Guardados: {registros}")
+            Guardados: 2
         """
         if not ofertas:
             self.logger.warning("No hay ofertas para guardar en la base de datos.")
             return 0
         
         try:
-            with self.connect() as conn:
-                cursor = conn.cursor()
-                sql = get_insert_sql()
-                
-                for oferta in ofertas:
-                    valores = tuple(oferta.get(col) for col in COLUMNAS)
-                    cursor.execute(sql, valores)
-                
-                conn.commit()
-                if distrito:
-                    self.logger.info(f"Distrito {distrito}: {len(ofertas)} registros guardados/actualizados en BD.")
-                else:
-                    self.logger.info(f"Guardados/actualizados {len(ofertas)} registros en la base de datos.")
-                return len(ofertas)
+            conn = self.connect()
+            cursor = conn.cursor()
+            sql = get_insert_sql()
+            
+            for oferta in ofertas:
+                valores = tuple(oferta.get(col) for col in COLUMNAS)
+                cursor.execute(sql, valores)
+            
+            conn.commit()
+            
+            if distrito:
+                self.logger.info(
+                    f"Distrito {distrito}: {len(ofertas)} registros "
+                    f"guardados/actualizados en BD."
+                )
+            else:
+                self.logger.info(
+                    f"Guardados/actualizados {len(ofertas)} registros "
+                    f"en la base de datos."
+                )
+            
+            return len(ofertas)
                 
         except sqlite3.Error as e:
             self.logger.error(f"Error al interactuar con la base de datos: {e}")
             return 0
+        finally:
+            self.close()
     
     def get_count(self) -> int:
         """
         Obtiene el número total de registros en la base de datos.
         
         Returns:
-            Número de registros
+            int: Número total de registros en la tabla 'ofertas'.
+                Retorna 0 si hay un error o no hay registros.
+                
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     db.initialize_schema()
+            ...     total = db.get_count()
+            ...     print(f"Total de registros: {total}")
         """
         try:
-            with self.connect() as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM ofertas")
-                return cursor.fetchone()[0]
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM ofertas")
+            result = cursor.fetchone()
+            return result[0] if result else 0
         except sqlite3.Error:
+            self.logger.error("Error al obtener conteo total de registros")
             return 0
+        finally:
+            self.close()
     
     def get_distrito_count(self, distrito: str) -> int:
         """
         Obtiene el número de registros por distrito.
         
         Args:
-            distrito: Nombre del distrito
-            
+            distrito: Nombre del distrito (se convierte a mayúsculas)
+                
         Returns:
-            Número de registros para el distrito
+            int: Número de registros para el distrito especificado.
+                Retorna 0 si hay un error o no hay registros.
+                
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     merlo_count = db.get_distrito_count('merlo')
+            ...     print(f"Registros de Merlo: {merlo_count}")
         """
         try:
-            with self.connect() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT COUNT(*) FROM ofertas WHERE descdistrito = ?",
-                    (distrito.upper(),)
-                )
-                return cursor.fetchone()[0]
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM ofertas WHERE descdistrito = ?",
+                (distrito.upper(),)
+            )
+            result = cursor.fetchone()
+            return result[0] if result else 0
         except sqlite3.Error:
+            self.logger.error(
+                f"Error al obtener conteo de registros para distrito {distrito}"
+            )
             return 0
+        finally:
+            self.close()

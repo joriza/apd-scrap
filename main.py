@@ -2,20 +2,25 @@
 APD-Scrap: Scraper de ofertas educativas del sistema APD.
 
 Punto de entrada principal de la aplicación.
+Este módulo orquesta el flujo completo de scraping: configuración,
+obtención de datos, guardado en JSON y base de datos.
 """
 
+import json
 import sys
 import logging
+from typing import Optional
+
 from apd_scrap.config import Config
 from apd_scrap.utils.logging import setup_logging
-from apd_scrap.cli.commands import create_parser
+from apd_scrap.cli.commands import parse_args
 from apd_scrap.scrapers.apd_scraper import APDScraper
 from apd_scrap.database.connection import DatabaseConnection
 
 
 def main() -> int:
     """
-    Función principal del scraper.
+    Función principal del scraper de APD.
     
     Flujo de ejecución:
     1. Configurar logging
@@ -23,9 +28,23 @@ def main() -> int:
     3. Inicializar scraper y base de datos
     4. Obtener datos de la API
     5. Guardar en JSON y base de datos
+    6. Manejar errores y retornar código de salida apropiado
     
     Returns:
-        0 si éxito, 1 si error
+        int: 0 si éxito, 1 si error. El código de salida es
+            útil para integración con scripts y CI/CD.
+            
+    Raises:
+        SystemExit: Se propaga excepciones críticas no manejadas
+            
+    Example:
+        >>> # Ejecución normal
+        >>> exit_code = main()
+        >>> print(f"Estado: {'OK' if exit_code == 0 else 'ERROR'}")
+        
+        >>> # Para uso en scripts
+        >>> if __name__ == "__main__":
+        ...     sys.exit(main())
     """
     # Configurar logging
     config = Config()
@@ -39,11 +58,11 @@ def main() -> int:
     )
     
     # Parsear argumentos
-    parser = create_parser()
-    args = parser.parse_args()
-    
+    args = parse_args()
     distrito = args.distrito.upper()
-    logger.info(f"APD-Scrap iniciado - Distrito: {distrito}")
+    
+    logger.info(f"APD-Scrap iniciado - Versión 2.3.0")
+    logger.info(f"Distrito seleccionado: {distrito}")
     print(f"Distrito seleccionado: {distrito}\n")
     
     # Inicializar componentes
@@ -77,9 +96,18 @@ def main() -> int:
                     print(f"\nSe han guardado/actualizado {registros_guardados} registros en 'apd.db'.")
                 else:
                     print("\nNo se guardaron registros en la base de datos.")
-    
+            
+    except requests.exceptions.RequestException as e:
+        logger.critical(f"Error de red: {e}")
+        print(f"\nError de conexión: {e}")
+        return 1
+    except json.JSONDecodeError as e:
+        logger.critical(f"Error al decodificar JSON: {e}")
+        print(f"\nError al procesar datos: {e}")
+        return 1
     except Exception as e:
         logger.critical(f"Error crítico en la ejecución: {e}")
+        print(f"\nError inesperado: {e}")
         return 1
     
     logger.info("APD-Scrap finalizado exitosamente")
@@ -87,4 +115,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    """Punto de entrada cuando se ejecuta como script."""
     sys.exit(main())
