@@ -41,6 +41,9 @@ develop-eggs/
 .env.*
 !.env.example
 
+# Archivos de configuración (opcional - comentar si deseas versionar config.yaml)
+# config.yaml
+
 # Archivos de logs y temporales
 *.log
 *.tmp
