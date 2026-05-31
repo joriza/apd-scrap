@@ -17,6 +17,9 @@ COLUMNAS: list[str] = [
     "acargodireccion",
     "cuilautor",
     "cuil_puntero",
+    "cuil_ganador",
+    "puntaje_puntero",
+    "nombre_puntero",
     "supl_hasta",
     "turno",
     "idoferta",
@@ -111,6 +114,9 @@ CREATE TABLE IF NOT EXISTS ofertas (
     acargodireccion TEXT,
     cuilautor TEXT,
     cuil_puntero TEXT,
+    cuil_ganador TEXT,
+    puntaje_puntero REAL,
+    nombre_puntero TEXT,
     supl_hasta TEXT,
     turno TEXT,
     idoferta INTEGER,
@@ -234,9 +240,21 @@ def get_estados_values() -> list[str]:
     return ESTADOS_VALIDOS[:]
 
 
-# SQL para migración - agregar cuil_puntero a ofertas existentes
+# SQL para migración - agregar cuil_puntero, cuil_ganador, puntaje_puntero, nombre_puntero a ofertas existentes
 ALTER_TABLE_ADD_CUIL_PUNTERO: str = """
 ALTER TABLE ofertas ADD COLUMN cuil_puntero TEXT;
+"""
+
+ALTER_TABLE_ADD_CUIL_GANADOR: str = """
+ALTER TABLE ofertas ADD COLUMN cuil_ganador TEXT;
+"""
+
+ALTER_TABLE_ADD_PUNTAJE_PUNTERO: str = """
+ALTER TABLE ofertas ADD COLUMN puntaje_puntero REAL;
+"""
+
+ALTER_TABLE_ADD_NOMBRE_PUNTERO: str = """
+ALTER TABLE ofertas ADD COLUMN nombre_puntero TEXT;
 """
 
 

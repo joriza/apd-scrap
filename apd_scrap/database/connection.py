@@ -15,6 +15,9 @@ from apd_scrap.database.schema import (
     CREATE_TABLE_POSTULANTES_SQL,
     COLUMNAS_POSTULANTES,
     ALTER_TABLE_ADD_CUIL_PUNTERO,
+    ALTER_TABLE_ADD_CUIL_GANADOR,
+    ALTER_TABLE_ADD_PUNTAJE_PUNTERO,
+    ALTER_TABLE_ADD_NOMBRE_PUNTERO,
     get_insert_sql,
     get_insert_estados_sql,
     get_insert_postulantes_sql,
@@ -179,15 +182,24 @@ class DatabaseConnection(LoggerMixin):
             cursor.execute(CREATE_TABLE_SQL)
             cursor.execute(CREATE_TABLE_POSTULANTES_SQL)
             
-            # Migración: agregar cuil_puntero si no existe
+            # Migración: agregar nuevos campos si no existen
             cursor.execute("PRAGMA table_info(ofertas)")
             columnas_existentes = [row[1] for row in cursor.fetchall()]
-            if "cuil_puntero" not in columnas_existentes:
-                try:
-                    cursor.execute(ALTER_TABLE_ADD_CUIL_PUNTERO)
-                    self.logger.info("Columna cuil_puntero agregada a la tabla ofertas")
-                except sqlite3.OperationalError as e:
-                    self.logger.warning(f"No se pudo agregar cuil_puntero: {e}")
+            
+            migraciones = [
+                ("cuil_puntero", ALTER_TABLE_ADD_CUIL_PUNTERO),
+                ("cuil_ganador", ALTER_TABLE_ADD_CUIL_GANADOR),
+                ("puntaje_puntero", ALTER_TABLE_ADD_PUNTAJE_PUNTERO),
+                ("nombre_puntero", ALTER_TABLE_ADD_NOMBRE_PUNTERO),
+            ]
+            
+            for nombre_columna, sql_migracion in migraciones:
+                if nombre_columna not in columnas_existentes:
+                    try:
+                        cursor.execute(sql_migracion)
+                        self.logger.info(f"Columna {nombre_columna} agregada a la tabla ofertas")
+                    except sqlite3.OperationalError as e:
+                        self.logger.warning(f"No se pudo agregar {nombre_columna}: {e}")
             
             conn.commit()
             self.logger.debug("Esquema de base de datos inicializado correctamente")
@@ -417,11 +429,11 @@ class DatabaseConnection(LoggerMixin):
 
     def update_cuil_puntero(self) -> int:
         """
-        Actualiza el campo cuil_puntero en la tabla ofertas.
+        Actualiza los campos de puntero en la tabla ofertas.
 
-        Este método actualiza el campo cuil_puntero de la tabla ofertas
-        con el CUIL del postulante designado (designado='S'). Si no hay
-        postulante designado, usa el CUIL del postulante con mayor puntaje.
+        Este método actualiza los campos cuil_puntero, puntaje_puntero y nombre_puntero
+        de la tabla ofertas con los datos del postulante designado (designado='S').
+        Si no hay postulante designado, usa los datos del postulante con mayor puntaje.
 
         Returns:
             int: Número de ofertas actualizadas. Retorna 0 si hay error.
@@ -452,10 +464,22 @@ class DatabaseConnection(LoggerMixin):
                 FROM postulantes p
                 WHERE p.ige = ofertas.ige AND p.designado = 'S'
                 LIMIT 1
+            ),
+            puntaje_puntero = (
+                SELECT p.puntaje
+                FROM postulantes p
+                WHERE p.ige = ofertas.ige AND p.designado = 'S'
+                LIMIT 1
+            ),
+            nombre_puntero = (
+                SELECT p.nombres
+                FROM postulantes p
+                WHERE p.ige = ofertas.ige AND p.designado = 'S'
+                LIMIT 1
             )
             WHERE ige IN (
                 SELECT DISTINCT ige FROM postulantes WHERE designado = 'S'
-            ) AND cuil_puntero IS NULL;
+            ) AND (cuil_puntero IS NULL OR puntaje_puntero IS NULL OR nombre_puntero IS NULL);
             """
             cursor.execute(update_designado)
             designados = cursor.rowcount
@@ -470,12 +494,26 @@ class DatabaseConnection(LoggerMixin):
                 WHERE p.ige = ofertas.ige
                 ORDER BY p.puntaje DESC
                 LIMIT 1
+            ),
+            puntaje_puntero = (
+                SELECT p.puntaje
+                FROM postulantes p
+                WHERE p.ige = ofertas.ige
+                ORDER BY p.puntaje DESC
+                LIMIT 1
+            ),
+            nombre_puntero = (
+                SELECT p.nombres
+                FROM postulantes p
+                WHERE p.ige = ofertas.ige
+                ORDER BY p.puntaje DESC
+                LIMIT 1
             )
             WHERE ige IN (
                 SELECT DISTINCT ige FROM postulantes WHERE ige NOT IN (
                     SELECT DISTINCT ige FROM postulantes WHERE designado = 'S'
                 )
-            ) AND cuil_puntero IS NULL;
+            ) AND (cuil_puntero IS NULL OR puntaje_puntero IS NULL OR nombre_puntero IS NULL);
             """
             cursor.execute(update_max_puntaje)
             max_puntaje = cursor.rowcount
@@ -485,16 +523,16 @@ class DatabaseConnection(LoggerMixin):
 
             if actualizados > 0:
                 self.logger.info(
-                    f"cuil_puntero actualizado: {designados} designados, "
+                    f"Punteros actualizados: {designados} designados, "
                     f"{max_puntaje} por puntaje (total: {actualizados})"
                 )
             else:
-                self.logger.debug("No se actualizaron cuil_puntero (no hay postulantes nuevos)")
+                self.logger.debug("No se actualizaron punteros (no hay postulantes nuevos)")
 
             return actualizados
 
         except sqlite3.Error as e:
-            self.logger.error(f"Error al actualizar cuil_puntero: {e}")
+            self.logger.error(f"Error al actualizar punteros: {e}")
             return 0
         finally:
             self.close()
