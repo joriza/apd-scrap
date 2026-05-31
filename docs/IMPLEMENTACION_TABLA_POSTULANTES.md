@@ -208,9 +208,9 @@ def _fetch_data(self, params: dict[str, Any], url_override: Optional[str] = None
 
 ## ⚠️ Problemas Conocidos
 
-### Error SSL en Endpoint de Postulantes
+### ✅ Error SSL en Endpoint de Postulantes - RESUELTO
 
-**Error:**
+**Problema original:**
 ```
 SSLError: [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure
 ```
@@ -223,15 +223,97 @@ El endpoint `apd.oferta.postulante/select` requiere una configuración SSL difer
 - ❌ Endpoint postulantes falla con CustomHttpAdapter
 - ✅ Endpoint postulantes funciona con TLS 1.2 + SECLEVEL=1 (LegacyServerConnect)
 
-**Soluciones pendientes:**
-1. Crear segundo adaptador SSL específico para postulantes
-2. O configurar sesión separada para endpoint de postulantes
-3. O usar fallback con configuración SSL legacy
+**Solución implementada:**
 
-**Workaround actual:**
-```bash
-# Usar curl como fallback
-curl -k "https://servicios3.abc.gob.ar/valoracion.docente/api/apd.oferta.postulante/select?q=*:*&fq=idoferta:4067362&json.nl=map&sort=orden%20asc"
+Se creó un segundo adaptador HTTP específico para endpoints legacy:
+
+```python
+# En apd_scrap/utils/ssl_adapter.py
+class LegacyHttpAdapter(HTTPAdapter):
+    """
+    Adaptador HTTP para servidores con configuración SSL legacy.
+    
+    Características:
+    - Usa TLS 1.2 como versión mínima
+    - Configura SECLEVEL=1 para permitir ciphers más antiguos
+    - No verifica hostname (compatibilidad con servidores legacy)
+    """
+    
+    def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.set_ciphers("DEFAULT@SECLEVEL=1")
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        kwargs["ssl_context"] = context
+        return super().init_poolmanager(connections, maxsize, block, **kwargs)
+```
+
+**Cambios en `fetch_postulantes()`:**
+
+```python
+def fetch_postulantes(self, ige: int) -> Optional[dict[str, Any]]:
+    """
+    Obtiene todos los postulantes de una oferta específica.
+    
+    Usa una sesión temporal con adaptador SSL legacy.
+    """
+    try:
+        # Crear sesión temporal con adaptador SSL legacy
+        session = requests.Session()
+        session.mount("https://", LegacyHttpAdapter())
+        
+        params = {
+            "q": "*:*",
+            "fq": f"idoferta:{ige}",
+            "json.nl": "map",
+            "sort": "orden asc",
+        }
+        
+        response = session.get(
+            self.config.POSTULANTES_API_URL,
+            params=params,
+            timeout=self.config.API_TIMEOUT,
+        )
+        response.raise_for_status()
+        
+        return response.json()
+        
+    except (requests.RequestException, KeyError, json.JSONDecodeError) as e:
+        self.logger.error(f"Error al obtener postulantes para IGE {ige}: {e}")
+        return None
+```
+
+**Verificación de funcionamiento:**
+
+```python
+from apd_scrap.scrapers.apd_scraper import APDScraper
+from apd_scrap.database.connection import DatabaseConnection
+
+scraper = APDScraper()
+data = scraper.fetch_postulantes(4067362)
+
+if data:
+    docs = data.get('response', {}).get('docs', [])
+    print(f'Total de postulantes: {len(docs)}')  # Output: 10
+    
+    db = DatabaseConnection('test.db')
+    db.initialize_schema()
+    registros = db.save_postulantes(docs, ige=4067362)
+    print(f'Guardados: {registros}')  # Output: 10
+```
+
+**Resultado:**
+```
+Total de postulantes para IGE 4067362: 10
+Postulantes guardados en BD: 10
+Postulantes en BD para IGE 4067362: 10
+
+Primer postulante en BD:
+  CUIL: 20217355827
+  Nombres: IZAGUIRRE JORGE
+  Puntaje: 46.79
+  Estado: ACTIVA
 ```
 
 ---
@@ -310,11 +392,11 @@ La implementación está **70% completa**:
 - ⚠️ **Conexión SSL** - Pendiente de solución
 - 🔄 **Filtro de ofertas** - Pendiente de usuario
 
-**Estado:** ⚠️ **PENDIENTE DE RESOLUCIÓN SSL**
+**Estado:** ✅ **RESUELTO**
 
 ---
 
-**Version:** 2.8.0  
+**Version:** 2.8.1  
 **Branch:** 260531-4  
-**Commit:** 7b0e5ab  
+**Commit:** 591cfaa  
 **Fecha:** 2025-05-31
