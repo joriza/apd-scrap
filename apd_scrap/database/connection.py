@@ -174,7 +174,7 @@ class DatabaseConnection(LoggerMixin):
             cursor.execute(CREATE_TABLE_ESTADOS_SQL)
             cursor.execute(CREATE_TABLE_SQL)
             conn.commit()
-            self.logger.info("Esquema de base de datos inicializado correctamente")
+            self.logger.debug("Esquema de base de datos inicializado correctamente")
             return True
         except sqlite3.Error as e:
             self.logger.error(f"Error al inicializar el esquema: {e}")
@@ -207,7 +207,7 @@ class DatabaseConnection(LoggerMixin):
             estados_values = get_estados_values()
             cursor.execute(sql, estados_values)
             conn.commit()
-            self.logger.info(
+            self.logger.debug(
                 f"Tabla de estados poblada con {len(estados_values)} estados válidos"
             )
             return True

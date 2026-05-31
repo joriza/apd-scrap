@@ -173,7 +173,7 @@ class APDScraper(LoggerMixin):
             self.logger.warning(f"No se encontraron registros para el distrito {distrito}.")
             return None
 
-        self.logger.info(
+        self.logger.debug(
             f"Distrito {distrito}: se encontraron {total} registros. Obteniendo todos..."
         )
 
@@ -183,7 +183,7 @@ class APDScraper(LoggerMixin):
 
         if data:
             num_docs = len(data.get("response", {}).get("docs", []))
-            self.logger.info(f"Se obtuvieron {num_docs} documentos de {total} esperados")
+            self.logger.debug(f"Se obtuvieron {num_docs} documentos de {total} esperados")
 
         return data
 
