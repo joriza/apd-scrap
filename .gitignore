@@ -45,6 +45,9 @@ develop-eggs/
 *.log
 *.tmp
 
+# Archivos JSON temporales (solo en la raíz del proyecto)
+*.json
+
 # Reportes de pruebas y cobertura
 .pytest_cache/
 .coverage
