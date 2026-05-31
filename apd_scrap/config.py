@@ -6,6 +6,7 @@ incluyendo URLs de API, parámetros de base de datos y
 opciones de logging.
 """
 
+import logging
 from typing import Dict, Any
 
 
@@ -21,6 +22,14 @@ class Config:
     
     # Output Configuration
     OUTPUT_DIR: str = "."
+    
+    # Logging Configuration
+    LOG_NAME: str = "apd_scrap"
+    LOG_LEVEL: int = logging.INFO
+    LOG_FILE: str = "apd_scrap.log"
+    LOG_MAX_BYTES: int = 5 * 1024 * 1024  # 5MB
+    LOG_BACKUP_COUNT: int = 3
+    LOG_CONSOLE_OUTPUT: bool = True
     
     # SSL Configuration
     CIPHERS: str = (

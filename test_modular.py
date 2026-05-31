@@ -6,9 +6,18 @@ después de la refactorización.
 """
 
 import sys
+import logging
 from apd_scrap import Config, APDScraper, DatabaseConnection
+from apd_scrap.utils.logging import setup_logging
 from apd_scrap.database.schema import COLUMNAS, get_insert_sql
 from apd_scrap.cli.commands import create_parser
+
+# Configurar logging para pruebas (solo consola, sin archivo)
+setup_logging(
+    log_level=logging.INFO,
+    log_file=None,
+    console_output=False
+)
 
 
 def test_imports():

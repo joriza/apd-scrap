@@ -11,9 +11,10 @@ from typing import Optional, Dict, Any
 
 from apd_scrap.config import Config
 from apd_scrap.utils.ssl_adapter import CustomHttpAdapter
+from apd_scrap.utils.logging import LoggerMixin
 
 
-class APDScraper:
+class APDScraper(LoggerMixin):
     """
     Scraper para obtener ofertas educativas del sistema APD.
     """
@@ -71,10 +72,10 @@ class APDScraper:
         total = self.get_total_records(distrito)
         
         if total == 0:
-            print(f"No se encontraron registros para el distrito {distrito}.")
+            self.logger.warning(f"No se encontraron registros para el distrito {distrito}.")
             return None
         
-        print(f"Se encontraron {total} registros. Obteniendo todos...")
+        self.logger.info(f"Distrito {distrito}: se encontraron {total} registros. Obteniendo todos...")
         
         # Obtener todos los registros
         params = self.config.get_api_query_params(distrito, rows=total)
@@ -107,9 +108,9 @@ class APDScraper:
                 return json.loads(response.content.decode(response.apparent_encoding))
                 
         except requests.exceptions.RequestException as e:
-            print(f"Ocurrió un error en la solicitud HTTP: {e}")
+            self.logger.error(f"Ocurrió un error en la solicitud HTTP: {e}")
         except json.JSONDecodeError as e:
-            print(f"Error de decodificación: La respuesta no es un JSON válido. Error: {e}")
+            self.logger.error(f"Error de decodificación: La respuesta no es un JSON válido. Error: {e}")
         
         return None
     
@@ -134,11 +135,11 @@ class APDScraper:
                 json.dump(data, f, ensure_ascii=False, indent=4)
             
             num_docs = len(data.get("response", {}).get("docs", []))
-            print(f"\n¡Éxito! {num_docs} registros guardados en '{filename}'.")
+            self.logger.info(f"Archivos JSON: {num_docs} registros guardados en '{filename}'.")
             
             return filename
         except IOError as e:
-            print(f"Error al guardar archivo JSON: {e}")
+            self.logger.error(f"Error al guardar archivo JSON: {e}")
             return None
     
     def close(self) -> None:

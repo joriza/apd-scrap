@@ -9,9 +9,10 @@ import sqlite3
 from typing import List, Dict, Any
 
 from apd_scrap.database.schema import COLUMNAS, CREATE_TABLE_SQL, get_insert_sql
+from apd_scrap.utils.logging import LoggerMixin
 
 
-class DatabaseConnection:
+class DatabaseConnection(LoggerMixin):
     """
     Maneja la conexión y operaciones con la base de datos SQLite.
     """
@@ -65,21 +66,22 @@ class DatabaseConnection:
                 conn.commit()
             return True
         except sqlite3.Error as e:
-            print(f"Error al inicializar el esquema: {e}")
+            self.logger.error(f"Error al inicializar el esquema: {e}")
             return False
     
-    def save_ofertas(self, ofertas: List[Dict[str, Any]]) -> int:
+    def save_ofertas(self, ofertas: List[Dict[str, Any]], distrito: str = None) -> int:
         """
         Guarda o actualiza una lista de ofertas en la base de datos.
         
         Args:
             ofertas: Lista de diccionarios con datos de ofertas
+            distrito: Nombre del distrito (opcional, para logging)
             
         Returns:
             Número de registros guardados/actualizados
         """
         if not ofertas:
-            print("No hay ofertas para guardar en la base de datos.")
+            self.logger.warning("No hay ofertas para guardar en la base de datos.")
             return 0
         
         try:
@@ -92,10 +94,14 @@ class DatabaseConnection:
                     cursor.execute(sql, valores)
                 
                 conn.commit()
+                if distrito:
+                    self.logger.info(f"Distrito {distrito}: {len(ofertas)} registros guardados/actualizados en BD.")
+                else:
+                    self.logger.info(f"Guardados/actualizados {len(ofertas)} registros en la base de datos.")
                 return len(ofertas)
                 
         except sqlite3.Error as e:
-            print(f"Error al interactuar con la base de datos: {e}")
+            self.logger.error(f"Error al interactuar con la base de datos: {e}")
             return 0
     
     def get_count(self) -> int:
