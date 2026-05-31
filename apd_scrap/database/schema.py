@@ -66,6 +66,31 @@ ESTADOS_VALIDOS: list[str] = [
     "Cerrada",
 ]
 
+# Columnas de la tabla postulantes
+COLUMNAS_POSTULANTES: list[str] = [
+    "ige",
+    "cuil",
+    "puntaje",
+    "designado",
+    "nombres",
+    "idpostulacion",
+    "areaincumbencia",
+    "cargo",
+    "telefono",
+    "fechanacimiento",
+    "listadoorigen",
+    "cupof",
+    "estadopostulacion",
+    "recalificadoart",
+    "pun_titu",
+    "prioridad",
+    "email",
+    "TieneCargoTitular",
+    "pun_res",
+    "tienehojaruta",
+    "cuilautor",
+]
+
 # SQL para crear la tabla de estados
 CREATE_TABLE_ESTADOS_SQL: str = """
 CREATE TABLE IF NOT EXISTS estados (
@@ -125,6 +150,35 @@ CREATE TABLE IF NOT EXISTS ofertas (
 );
 """
 
+# SQL para crear la tabla de postulantes
+CREATE_TABLE_POSTULANTES_SQL: str = """
+CREATE TABLE IF NOT EXISTS postulantes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ige INTEGER NOT NULL,
+    cuil TEXT,
+    puntaje REAL,
+    designado TEXT,
+    nombres TEXT,
+    idpostulacion INTEGER,
+    areaincumbencia TEXT,
+    cargo TEXT,
+    telefono TEXT,
+    fechanacimiento TEXT,
+    listadoorigen TEXT,
+    cupof INTEGER,
+    estadopostulacion TEXT,
+    recalificadoart TEXT,
+    pun_titu REAL,
+    prioridad INTEGER,
+    email TEXT,
+    TieneCargoTitular TEXT,
+    pun_res REAL,
+    tienehojaruta TEXT,
+    cuilautor TEXT,
+    FOREIGN KEY (ige) REFERENCES ofertas(ige) ON DELETE CASCADE
+);
+"""
+
 
 def get_insert_sql() -> str:
     """
@@ -176,3 +230,24 @@ def get_estados_values() -> list[str]:
         ['Anulada', 'Desierta', 'DESIGNADA', ...]
     """
     return ESTADOS_VALIDOS[:]
+
+
+def get_insert_postulantes_sql() -> str:
+    """
+    Genera la sentencia SQL para insertar/actualizar postulantes.
+
+    Esta función genera dinámicamente la sentencia INSERT OR REPLACE
+    utilizando todas las columnas definidas en COLUMNAS_POSTULANTES
+    con el número apropiado de placeholders '?'.
+
+    Returns:
+        str: Sentencia SQL preparada con placeholders
+
+    Example:
+        >>> sql = get_insert_postulantes_sql()
+        >>> print(sql)
+        INSERT OR REPLACE INTO postulantes (ige, cuil, ...) VALUES (?, ?, ...)
+    """
+    placeholders: str = ", ".join(["?"] * len(COLUMNAS_POSTULANTES))
+    columns: str = ", ".join(COLUMNAS_POSTULANTES)
+    return f"INSERT OR REPLACE INTO postulantes ({columns}) VALUES ({placeholders})"

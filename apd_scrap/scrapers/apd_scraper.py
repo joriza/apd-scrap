@@ -197,7 +197,7 @@ class APDScraper(LoggerMixin):
             requests.exceptions.RequestException
         )
     )
-    def _fetch_data(self, params: dict[str, Any]) -> Optional[dict[str, Any]]:
+    def _fetch_data(self, params: dict[str, Any], url_override: Optional[str] = None) -> Optional[dict[str, Any]]:
         """
         Realiza la solicitud a la API con reintentos automáticos.
 
@@ -207,6 +207,7 @@ class APDScraper(LoggerMixin):
 
         Args:
             params: Parámetros de consulta para la API
+            url_override: URL alternativa para la solicitud (opcional)
 
         Returns:
             Optional[Dict[str, Any]]: Datos JSON decodificados o None
@@ -220,9 +221,10 @@ class APDScraper(LoggerMixin):
             - Reintenta automáticamente con backoff exponencial
             - Máximo 3 reintentos con delays de 2s, 4s, 8s
         """
+        url = url_override or self.config.API_BASE_URL
         try:
             response = self.session.get(
-                self.config.API_BASE_URL, params=params, timeout=self.config.API_TIMEOUT
+                url, params=params, timeout=self.config.API_TIMEOUT
             )
             response.raise_for_status()
 
@@ -346,3 +348,36 @@ class APDScraper(LoggerMixin):
             Las excepciones no se suprimen, se propagan normalmente.
         """
         self.close()
+
+    def fetch_postulantes(
+        self,
+        ige: int,
+    ) -> Optional[dict[str, Any]]:
+        """
+        Obtiene todos los postulantes de una oferta específica.
+
+        Este método consulta la API de postulantes utilizando el IGE
+        de la oferta como filtro.
+
+        Args:
+            ige: Identificador único de la oferta (idoferta)
+
+        Returns:
+            dict: Respuesta de la API con los postulantes, o None si hay error
+
+        Example:
+            >>> scraper = APDScraper()
+            >>> data = scraper.fetch_postulantes(4067362)
+            >>> postulantes = data['response']['docs']
+        """
+        try:
+            params: dict[str, Any] = {
+                "q": "*:*",
+                "fq": f"idoferta:{ige}",
+                "json.nl": "map",
+                "sort": "orden asc",
+            }
+            return self._fetch_data(params, url_override=self.config.POSTULANTES_API_URL)
+        except (requests.RequestException, KeyError) as e:
+            self.logger.error(f"Error al obtener postulantes para IGE {ige}: {e}")
+            return None

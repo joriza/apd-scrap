@@ -12,8 +12,11 @@ from apd_scrap.database.schema import (
     COLUMNAS,
     CREATE_TABLE_SQL,
     CREATE_TABLE_ESTADOS_SQL,
+    CREATE_TABLE_POSTULANTES_SQL,
+    COLUMNAS_POSTULANTES,
     get_insert_sql,
     get_insert_estados_sql,
+    get_insert_postulantes_sql,
     get_estados_values,
 )
 from apd_scrap.utils.logging import LoggerMixin
@@ -173,6 +176,7 @@ class DatabaseConnection(LoggerMixin):
             cursor = conn.cursor()
             cursor.execute(CREATE_TABLE_ESTADOS_SQL)
             cursor.execute(CREATE_TABLE_SQL)
+            cursor.execute(CREATE_TABLE_POSTULANTES_SQL)
             conn.commit()
             self.logger.debug("Esquema de base de datos inicializado correctamente")
             return True
@@ -274,6 +278,71 @@ class DatabaseConnection(LoggerMixin):
 
         except sqlite3.Error as e:
             self.logger.error(f"Error al interactuar con la base de datos: {e}")
+            return 0
+        finally:
+            self.close()
+
+    def save_postulantes(
+        self,
+        postulantes: list[dict[str, Any]],
+        ige: Optional[int] = None,
+    ) -> int:
+        """
+        Guarda o actualiza una lista de postulantes en la base de datos.
+
+        Este método inserta o actualiza postulantes en la tabla 'postulantes'
+        usando INSERT OR REPLACE, lo que significa que si un registro
+        con la misma combinación de ige y idpostulacion ya existe, será actualizado.
+
+        Args:
+            postulantes: Lista de diccionarios donde cada diccionario
+                representa un postulante con sus campos como claves
+            ige: IGE de la oferta asociada (opcional, solo para logging)
+
+        Returns:
+            int: Número de registros guardados/actualizados. Retorna 0
+                si la lista está vacía o hubo un error
+
+        Example:
+            >>> postulantes = [
+            ...     {'ige': 4067362, 'cuil': '20217355827', 'nombres': 'Juan Pérez'},
+            ...     {'ige': 4067362, 'cuil': '20217355828', 'nombres': 'María López'}
+            ... ]
+            >>> with DatabaseConnection() as db:
+            ...     db.initialize_schema()
+            ...     registros = db.save_postulantes(postulantes, ige=4067362)
+            ...     print(f"Guardados: {registros}")
+            Guardados: 2
+        """
+        if not postulantes:
+            self.logger.debug("No hay postulantes para guardar en la base de datos.")
+            return 0
+
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            sql = get_insert_postulantes_sql()
+
+            for postulante in postulantes:
+                valores = tuple(postulante.get(col) for col in COLUMNAS_POSTULANTES)
+                cursor.execute(sql, valores)
+
+            conn.commit()
+
+            if ige:
+                self.logger.info(
+                    f"IGE {ige}: {len(postulantes)} postulantes guardados/actualizados en BD."
+                )
+            else:
+                self.logger.info(
+                    f"Guardados/actualizados {len(postulantes)} postulantes "
+                    f"en la base de datos."
+                )
+
+            return len(postulantes)
+
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al guardar postulantes en la base de datos: {e}")
             return 0
         finally:
             self.close()

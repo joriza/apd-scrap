@@ -54,6 +54,7 @@ class Config:
         # API Configuration
         "api": {
             "base_url": "https://servicios3.abc.gob.ar/valoracion.docente/api/apd.oferta.encabezado/select",
+            "postulantes_url": "https://servicios3.abc.gob.ar/valoracion.docente/api/apd.oferta.postulante/select",
             "timeout": 60,
         },
         # Database Configuration
@@ -163,6 +164,8 @@ class Config:
         # API Configuration
         if os.getenv("APD_API_URL"):
             self._config["api"]["base_url"] = os.getenv("APD_API_URL")
+        if os.getenv("APD_POSTULANTES_API_URL"):
+            self._config["api"]["postulantes_url"] = os.getenv("APD_POSTULANTES_API_URL")
         if os.getenv("APD_API_TIMEOUT"):
             self._config["api"]["timeout"] = int(os.getenv("APD_API_TIMEOUT"))
 
@@ -215,6 +218,7 @@ class Config:
         """Expone configuración como atributos para compatibilidad con código existente."""
         # API Configuration
         self.API_BASE_URL = self._config["api"]["base_url"]
+        self.POSTULANTES_API_URL = self._config["api"]["postulantes_url"]
         self.API_TIMEOUT = self._config["api"]["timeout"]
 
         # Database Configuration
