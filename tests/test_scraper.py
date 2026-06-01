@@ -32,7 +32,9 @@ def mock_response():
 @pytest.fixture
 def scraper():
     """Fixture que crea una instancia de APDScraper."""
-    return APDScraper()
+    s = APDScraper()
+    yield s
+    s.close()
 
 
 class TestAPDScraper:
