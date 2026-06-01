@@ -178,6 +178,16 @@ CREATE TABLE IF NOT EXISTS postulantes (
 );
 """
 
+# SQL para crear indexes de rendimiento
+CREATE_INDEXES_SQL: list[str] = [
+    """CREATE INDEX IF NOT EXISTS idx_ofertas_estado_distrito
+       ON ofertas (estado, descdistrito);""",
+    """CREATE INDEX IF NOT EXISTS idx_ofertas_inicio
+       ON ofertas (iniciooferta);""",
+    """CREATE INDEX IF NOT EXISTS idx_postulantes_ige
+       ON postulantes (ige);""",
+]
+
 
 def get_insert_sql() -> str:
     """
@@ -250,3 +260,20 @@ def get_insert_postulantes_sql() -> str:
     placeholders: str = ", ".join(["?"] * len(COLUMNAS_POSTULANTES))
     columns: str = ", ".join(COLUMNAS_POSTULANTES)
     return f"INSERT OR REPLACE INTO postulantes ({columns}) VALUES ({placeholders})"
+
+
+def get_create_indexes_sql() -> list[str]:
+    """
+    Obtiene la lista de sentencias SQL para crear indexes.
+
+    Returns:
+        list[str]: Lista de sentencias SQL CREATE INDEX
+
+    Example:
+        >>> indexes = get_create_indexes_sql()
+        >>> for sql in indexes:
+        ...     print(sql)
+        CREATE INDEX IF NOT EXISTS idx_ofertas_estado_distrito ON ofertas (estado, descdistrito);
+        ...
+    """
+    return CREATE_INDEXES_SQL[:]

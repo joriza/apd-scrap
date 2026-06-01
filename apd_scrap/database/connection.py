@@ -18,6 +18,7 @@ from apd_scrap.database.schema import (
     get_insert_estados_sql,
     get_insert_postulantes_sql,
     get_estados_values,
+    get_create_indexes_sql,
 )
 from apd_scrap.utils.logging import LoggerMixin
 
@@ -159,7 +160,7 @@ class DatabaseConnection(LoggerMixin):
 
         Este método ejecuta la sentencia SQL CREATE TABLE IF NOT EXISTS
         para crear la tabla 'estados' y la tabla 'ofertas' con todas las
-        columnas necesarias.
+        columnas necesarias, y crea los indexes de rendimiento.
 
         Returns:
             bool: True si el esquema se inicializó correctamente,
@@ -177,6 +178,11 @@ class DatabaseConnection(LoggerMixin):
             cursor.execute(CREATE_TABLE_ESTADOS_SQL)
             cursor.execute(CREATE_TABLE_SQL)
             cursor.execute(CREATE_TABLE_POSTULANTES_SQL)
+
+            # Crear indexes de rendimiento
+            for index_sql in get_create_indexes_sql():
+                cursor.execute(index_sql)
+
             conn.commit()
             self.logger.debug("Esquema de base de datos inicializado correctamente")
             return True
