@@ -211,9 +211,7 @@ class DatabaseConnection(LoggerMixin):
             estados_values = get_estados_values()
             cursor.execute(sql, estados_values)
             conn.commit()
-            self.logger.debug(
-                f"Tabla de estados poblada con {len(estados_values)} estados válidos"
-            )
+            self.logger.debug(f"Tabla de estados poblada con {len(estados_values)} estados válidos")
             return True
         except sqlite3.Error as e:
             self.logger.error(f"Error al poblar la tabla de estados: {e}")
@@ -402,4 +400,3 @@ class DatabaseConnection(LoggerMixin):
             return 0
         finally:
             self.close()
-

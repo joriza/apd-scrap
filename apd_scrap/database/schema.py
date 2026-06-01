@@ -5,7 +5,6 @@ Este módulo contiene todas las definiciones relacionadas con el esquema
 de la base de datos de APD-Scrap.
 """
 
-
 # Lista de columnas de la tabla ofertas
 COLUMNAS: list[str] = [
     "ige",

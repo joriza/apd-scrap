@@ -193,10 +193,12 @@ class APDScraper(LoggerMixin):
         exceptions=(
             requests.Timeout,
             requests.ConnectionError,
-            requests.exceptions.RequestException
-        )
+            requests.exceptions.RequestException,
+        ),
     )
-    def _fetch_data(self, params: dict[str, Any], url_override: Optional[str] = None) -> Optional[dict[str, Any]]:
+    def _fetch_data(
+        self, params: dict[str, Any], url_override: Optional[str] = None
+    ) -> Optional[dict[str, Any]]:
         """
         Realiza la solicitud a la API con reintentos automáticos.
 
@@ -222,9 +224,7 @@ class APDScraper(LoggerMixin):
         """
         url = url_override or self.config.API_BASE_URL
         try:
-            response = self.session.get(
-                url, params=params, timeout=self.config.API_TIMEOUT
-            )
+            response = self.session.get(url, params=params, timeout=self.config.API_TIMEOUT)
             response.raise_for_status()
 
             try:
@@ -371,7 +371,7 @@ class APDScraper(LoggerMixin):
             >>> scraper = APDScraper()
             >>> data = scraper.fetch_postulantes(4067362)
             >>> postulantes = data['response']['docs']
-            >>> 
+            >>>
             >>> # Solo postulantes designados
             >>> data = scraper.fetch_postulantes(4067362, designado='S')
             >>> postulantes = data['response']['docs']
@@ -380,33 +380,33 @@ class APDScraper(LoggerMixin):
             # Crear sesión temporal con adaptador SSL legacy
             session = requests.Session()
             session.mount("https://", LegacyHttpAdapter())
-            
+
             params: dict[str, Any] = {
                 "q": "*:*",
                 "fq": f"idoferta:{ige}",
                 "json.nl": "map",
                 "sort": "orden asc",
             }
-            
+
             # Agregar filtro de designado si se especifica
             if designado is not None:
                 params["fq"] = f"designado:{designado}"
-            
+
             response = session.get(
                 self.config.POSTULANTES_API_URL,
                 params=params,
                 timeout=self.config.API_TIMEOUT,
             )
             response.raise_for_status()
-            
+
             try:
                 return response.json()
             except json.JSONDecodeError:
                 content = response.content
                 apparent_encoding = response.apparent_encoding
-                decoded = content.decode(apparent_encoding or 'utf-8', errors='replace')
+                decoded = content.decode(apparent_encoding or "utf-8", errors="replace")
                 return json.loads(decoded)
-                
+
         except (requests.RequestException, KeyError, json.JSONDecodeError) as e:
             self.logger.error(f"Error al obtener postulantes para IGE {ige}: {e}")
             return None

@@ -85,9 +85,7 @@ class CustomHttpAdapter(HTTPAdapter):
         """
         context = create_urllib3_context(ciphers=CIPHERS)
         kwargs["ssl_context"] = context
-        return super().init_poolmanager(
-            connections, maxsize, block, **kwargs
-        )
+        return super().init_poolmanager(connections, maxsize, block, **kwargs)
 
 
 class LegacyHttpAdapter(HTTPAdapter):
@@ -144,6 +142,4 @@ class LegacyHttpAdapter(HTTPAdapter):
         context.verify_mode = ssl.CERT_NONE
 
         kwargs["ssl_context"] = context
-        return super().init_poolmanager(
-            connections, maxsize, block, **kwargs
-        )
+        return super().init_poolmanager(connections, maxsize, block, **kwargs)
