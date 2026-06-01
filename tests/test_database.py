@@ -88,7 +88,9 @@ class TestDatabaseConnection:
         with patch.object(db_connection, "connect") as mock_connect:
             mock_conn = Mock()
             mock_conn.cursor.side_effect = sqlite3.Error("Error simulado")
-            mock_connect.return_value.__enter__.return_value = mock_conn
+            mock_conn.__enter__ = Mock(return_value=mock_conn)
+            mock_conn.__exit__ = Mock(return_value=None)
+            mock_connect.return_value = mock_conn
 
             result = db_connection.initialize_schema()
 
@@ -134,7 +136,9 @@ class TestDatabaseConnection:
         """Verifica manejo de errores SQLite al guardar."""
         mock_conn = Mock()
         mock_conn.cursor.side_effect = sqlite3.Error("Error simulado")
-        mock_connect.return_value.__enter__.return_value = mock_conn
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=None)
+        mock_connect.return_value = mock_conn
 
         ofertas = [{"ige": 1, "estado": "Publicada"}]
         result = db_connection.save_ofertas(ofertas)
@@ -161,7 +165,9 @@ class TestDatabaseConnection:
         """Verifica get_count con error."""
         mock_conn = Mock()
         mock_conn.cursor.side_effect = sqlite3.Error("Error simulado")
-        mock_connect.return_value.__enter__.return_value = mock_conn
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=None)
+        mock_connect.return_value = mock_conn
 
         result = db_connection.get_count()
 
@@ -187,7 +193,9 @@ class TestDatabaseConnection:
         """Verifica get_distrito_count con error."""
         mock_conn = Mock()
         mock_conn.cursor.side_effect = sqlite3.Error("Error simulado")
-        mock_connect.return_value.__enter__.return_value = mock_conn
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=None)
+        mock_connect.return_value = mock_conn
 
         result = db_connection.get_distrito_count("MERLO")
 
