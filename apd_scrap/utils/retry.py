@@ -5,9 +5,10 @@ Este módulo proporciona un decorador para reintentar operaciones
 automáticamente con reintentos con backoff exponencial entre intentos.
 """
 
+import random
 import time
 import logging
-from typing import Callable, Optional, Any
+from typing import Optional
 from functools import wraps
 
 # Obtener logger
@@ -133,7 +134,7 @@ def retry_with_backoff(
 
                     # Añadir jitter aleatorio
                     if jitter:
-                        delay = delay * (0.8 + 0.4 * time.random())  # 80%-120%
+                        delay = delay * (0.8 + 0.4 * random.random())  # 80%-120%
 
         return wrapper
 

@@ -9,7 +9,7 @@ import sys
 import os
 from pathlib import Path
 import tempfile
-import shutil
+import pytest
 
 # Agregar el directorio raíz al path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -298,3 +298,143 @@ def run_all_tests():
 
 if __name__ == "__main__":
     sys.exit(run_all_tests())
+
+
+class TestConfigExtra:
+    """Tests adicionales para mejorar cobertura."""
+
+    def test_config_error_exception(self):
+        """Prueba ConfigError exception."""
+        error = ConfigError("Test error message")
+        assert str(error) == "Test error message"
+        assert isinstance(error, Exception)
+
+    def test_validate_negative_timeout(self):
+        """Prueba validación de timeout negativo."""
+        yaml_content = """
+api:
+  timeout: -10
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(yaml_content)
+            yaml_path = f.name
+
+        try:
+            # Limpiar variables de entorno para este test
+            for key in list(os.environ.keys()):
+                if key.startswith("APD_"):
+                    del os.environ[key]
+
+            config = Config(config_path=yaml_path)
+            # Verificar que el timeout se cargó correctamente del YAML
+            assert config._config["api"]["timeout"] == -10
+            with pytest.raises(ConfigError):
+                config.validate()
+        finally:
+            os.unlink(yaml_path)
+
+    def test_validate_zero_timeout(self):
+        """Prueba validación de timeout cero."""
+        yaml_content = """
+api:
+  timeout: 0
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(yaml_content)
+            yaml_path = f.name
+
+        try:
+            config = Config(config_path=yaml_path)
+            with pytest.raises(ConfigError):
+                config.validate()
+        finally:
+            os.unlink(yaml_path)
+
+    def test_validate_negative_max_retries(self):
+        """Prueba validación de max_retries negativo."""
+        yaml_content = """
+api:
+  max_retries: -5
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(yaml_content)
+            yaml_path = f.name
+
+        try:
+            config = Config(config_path=yaml_path)
+            with pytest.raises(ConfigError):
+                config.validate()
+        finally:
+            os.unlink(yaml_path)
+
+    def test_validate_negative_batch_size(self):
+        """Prueba validación de batch_size negativo."""
+        yaml_content = """
+database:
+  batch_size: -100
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(yaml_content)
+            yaml_path = f.name
+
+        try:
+            config = Config(config_path=yaml_path)
+            with pytest.raises(ConfigError):
+                config.validate()
+        finally:
+            os.unlink(yaml_path)
+
+    def test_validate_invalid_log_level(self):
+        """Prueba validación de log level inválido."""
+        yaml_content = """
+logging:
+  level: "INVALID_LEVEL"
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(yaml_content)
+            yaml_path = f.name
+
+        try:
+            config = Config(config_path=yaml_path)
+            with pytest.raises(ConfigError):
+                config.validate()
+        finally:
+            os.unlink(yaml_path)
+
+    def test_postulantes_url_config(self):
+        """Prueba configuración de URL de postulantes."""
+        config = Config()
+        assert hasattr(config, "POSTULANTES_API_URL")
+        assert config.POSTULANTES_API_URL is not None
+        assert "postulante" in config.POSTULANTES_API_URL
+
+    def test_yaml_available_flags(self):
+        """Prueba flags de disponibilidad de librerías."""
+        from apd_scrap import config
+
+        assert hasattr(config, "YAML_AVAILABLE")
+        assert hasattr(config, "DOTENV_AVAILABLE")
+
+    def test_without_yaml_file(self):
+        """Prueba carga sin archivo YAML."""
+        config = Config(config_path="/nonexistent/path/config.yaml")
+        assert config.API_TIMEOUT == 60  # Default value
+        assert config.DB_PATH == "apd.db"  # Default value
+
+    def test_yaml_malformed(self):
+        """Prueba manejo de YAML malformado."""
+        yaml_content = """
+api:
+  timeout: [invalid
+  syntax:
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(yaml_content)
+            yaml_path = f.name
+
+        try:
+            # Debería lanzar ConfigError cuando YAML está malformado
+            with pytest.raises(ConfigError):
+                Config(config_path=yaml_path)
+        finally:
+            os.unlink(yaml_path)
