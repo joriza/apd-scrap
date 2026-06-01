@@ -30,7 +30,6 @@ def test_basic_logging():
     logger.critical("Mensaje CRITICAL")
 
     print("[OK] Logging básico funcionando")
-    return True
 
 
 def test_logger_levels():
@@ -59,7 +58,6 @@ def test_logger_levels():
     logger_debug.info("Este mensaje INFO debería aparecer")
 
     print("[OK] Niveles de logging funcionando")
-    return True
 
 
 def test_get_logger():
@@ -75,9 +73,7 @@ def test_get_logger():
         print("[OK] Mismo logger devuelto")
     else:
         print("[ERROR] Loggers diferentes")
-        return False
-
-    return True
+        assert False
 
 
 def test_logger_mixin():
@@ -98,7 +94,6 @@ def test_logger_mixin():
     obj.metodo()
 
     print("[OK] LoggerMixin funcionando")
-    return True
 
 
 def test_file_logging():
@@ -119,13 +114,12 @@ def test_file_logging():
             content = f.read()
             if test_message in content:
                 print(f"[OK] Mensaje encontrado en {log_file}")
-                return True
             else:
                 print(f"[ERROR] Mensaje no encontrado en {log_file}")
-                return False
+                assert False
     else:
         print(f"[ERROR] Archivo {log_file} no creado")
-        return False
+        assert False
 
 
 def test_console_logging():
@@ -140,7 +134,6 @@ def test_console_logging():
     logger.info("Este es un mensaje de consola")
 
     print("[OK] Logging por consola funcionando")
-    return True
 
 
 def run_all_tests():

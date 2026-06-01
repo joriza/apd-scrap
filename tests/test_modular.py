@@ -31,10 +31,9 @@ def test_imports():
         from apd_scrap.utils.ssl_adapter import CustomHttpAdapter, CIPHERS
 
         print("[OK] Todas las importaciones exitosas")
-        return True
     except ImportError as e:
         print(f"[ERROR] Error de importación: {e}")
-        return False
+        assert False
 
 
 def test_config():
@@ -55,8 +54,6 @@ def test_config():
     filename = config.get_output_filename("merlo")
     print(f"[OK] Filename: {filename}")
 
-    return True
-
 
 def test_database_schema():
     """Verifica el esquema de base de datos."""
@@ -71,8 +68,6 @@ def test_database_schema():
     insert_sql = get_insert_sql()
     print(f"[OK] SQL INSERT generado correctamente")
     print(f"  Placeholders: {insert_sql.count('?')} (esperado: {len(COLUMNAS)})")
-
-    return True
 
 
 def test_database_operations():
@@ -94,11 +89,9 @@ def test_database_operations():
             # Obtener conteo por distrito
             merlo_count = db.get_distrito_count("merlo")
             print(f"[OK] Registros MERLO: {merlo_count}")
-
-        return True
     except Exception as e:
         print(f"[ERROR] Error: {e}")
-        return False
+        assert False
 
 
 def test_scraper():
@@ -116,10 +109,9 @@ def test_scraper():
         print(f"[OK] Total registros merlo: {total}")
 
         scraper.close()
-        return True
     except Exception as e:
         print(f"[ERROR] Error: {e}")
-        return False
+        assert False
 
 
 def test_cli():
@@ -137,8 +129,6 @@ def test_cli():
     # Test con argumento
     args = parser.parse_args(["--distrito", "moreno"])
     print(f"[OK] Distrito especificado: {args.distrito}")
-
-    return True
 
 
 def run_all_tests():

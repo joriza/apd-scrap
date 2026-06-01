@@ -35,8 +35,6 @@ def test_default_config():
     assert config.DB_PATH == "apd.db"
     assert config.ENVIRONMENT == "development"
 
-    return True
-
 
 def test_yaml_config():
     """Prueba la configuración desde YAML."""
@@ -77,8 +75,6 @@ environment: "testing"
         assert config.API_TIMEOUT == 120
         assert config.DB_PATH == "test.db"
         assert config.ENVIRONMENT == "testing"
-
-        return True
     finally:
         os.unlink(yaml_path)
 
@@ -112,8 +108,6 @@ APD_ENVIRONMENT=production
         assert config.API_TIMEOUT == 30
         assert config.DB_PATH == "custom.db"
         assert config.ENVIRONMENT == "production"
-
-        return True
     finally:
         os.unlink(env_path)
 
@@ -144,8 +138,6 @@ def test_get_method():
     print(
         f"[OK] config.get('nonexistent.key', 'default'): {config.get('nonexistent.key', 'default')}"
     )
-
-    return True
 
 
 def test_validation():
@@ -181,7 +173,6 @@ api:
             return False
         except ConfigError as e:
             print(f"[OK] Validación detectó error: {e}")
-            return True
     finally:
         os.unlink(yaml_path)
 
@@ -220,8 +211,6 @@ api:
         # ENV debería tener prioridad sobre YAML
         assert config.API_TIMEOUT == 45
         print(f"[OK] ENV (45) tiene prioridad sobre YAML (90): {config.API_TIMEOUT}")
-
-        return True
     finally:
         os.unlink(yaml_path)
         os.unlink(env_path)
@@ -259,8 +248,6 @@ def test_backward_compatibility():
     filename = config.get_output_filename("merlo")
     assert filename == "output_merlo.json"
     print(f"[OK] get_output_filename() funciona: {filename}")
-
-    return True
 
 
 def run_all_tests():
