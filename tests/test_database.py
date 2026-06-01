@@ -220,3 +220,109 @@ class TestDatabaseConnection:
 
                 assert result == 1
                 mock_cursor.execute.assert_called()
+
+    def test_save_postulantes_con_lista_vacia(self, db_connection):
+        """Verifica que save_postulantes retorne 0 con lista vacía."""
+        result = db_connection.save_postulantes([])
+        assert result == 0
+
+    @patch("apd_scrap.database.connection.sqlite3.connect")
+    def test_save_postulantes_inserta_registros(self, mock_connect):
+        """Verifica que save_postulantes inserte registros."""
+        mock_conn = Mock()
+        mock_cursor = Mock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=None)
+        mock_connect.return_value = mock_conn
+
+        with DatabaseConnection() as db:
+            postulantes = [
+                {"ige": 4067362, "cuil": "20217355827", "designado": "N"}
+            ]
+            result = db.save_postulantes(postulantes, ige=4067362)
+            assert result == 1
+
+    @patch("apd_scrap.database.connection.sqlite3.connect")
+    def test_save_postulantes_con_ige(self, mock_connect):
+        """Verifica logging con IGE."""
+        mock_conn = Mock()
+        mock_cursor = Mock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=None)
+        mock_connect.return_value = mock_conn
+
+        with DatabaseConnection() as db:
+            postulantes = [
+                {"ige": 4067362, "cuil": "20217355827", "designado": "N"}
+            ]
+            result = db.save_postulantes(postulantes, ige=4067362)
+            assert result == 1
+
+    @patch("apd_scrap.database.connection.sqlite3.connect")
+    def test_save_postulantes_sin_ige(self, mock_connect):
+        """Verifica logging sin IGE."""
+        mock_conn = Mock()
+        mock_cursor = Mock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=None)
+        mock_connect.return_value = mock_conn
+
+        with DatabaseConnection() as db:
+            postulantes = [
+                {"ige": 4067362, "cuil": "20217355827", "designado": "N"}
+            ]
+            result = db.save_postulantes(postulantes)
+            assert result == 1
+
+    @patch("apd_scrap.database.connection.sqlite3.connect")
+    def test_save_postulantes_con_error_sqlite(self, mock_connect):
+        """Verifica manejo de errores SQLite al guardar postulantes."""
+        mock_conn = Mock()
+        mock_conn.cursor.side_effect = sqlite3.Error("Error simulado")
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=None)
+        mock_connect.return_value = mock_conn
+
+        with DatabaseConnection() as db:
+            postulantes = [
+                {"ige": 4067362, "cuil": "20217355827", "designado": "N"}
+            ]
+            result = db.save_postulantes(postulantes)
+            assert result == 0
+
+    @patch("apd_scrap.database.connection.sqlite3.connect")
+    def test_save_ofertas_error_commit(self, mock_connect):
+        """Verifica manejo de error en commit de save_ofertas."""
+        mock_conn = Mock()
+        mock_cursor = Mock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_conn.commit.side_effect = sqlite3.Error("Error commit")
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=None)
+        mock_connect.return_value = mock_conn
+
+        with DatabaseConnection() as db:
+            ofertas = [{"ige": 1, "estado": "Publicada"}]
+            result = db.save_ofertas(ofertas)
+            assert result == 0
+
+    @patch("apd_scrap.database.connection.sqlite3.connect")
+    def test_save_postulantes_error_commit(self, mock_connect):
+        """Verifica manejo de error en commit de save_postulantes."""
+        mock_conn = Mock()
+        mock_cursor = Mock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_conn.commit.side_effect = sqlite3.Error("Error commit")
+        mock_conn.__enter__ = Mock(return_value=mock_conn)
+        mock_conn.__exit__ = Mock(return_value=None)
+        mock_connect.return_value = mock_conn
+
+        with DatabaseConnection() as db:
+            postulantes = [
+                {"ige": 4067362, "cuil": "20217355827", "designado": "N"}
+            ]
+            result = db.save_postulantes(postulantes)
+            assert result == 0
