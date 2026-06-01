@@ -269,12 +269,11 @@ class DatabaseConnection(LoggerMixin):
 
             if distrito:
                 self.logger.info(
-                    f"Distrito {distrito}: {len(ofertas)} registros "
-                    f"guardados/actualizados en BD."
+                    f"Distrito {distrito}: {len(ofertas)} registros guardados/actualizados en BD."
                 )
             else:
                 self.logger.info(
-                    f"Guardados/actualizados {len(ofertas)} registros " f"en la base de datos."
+                    f"Guardados/actualizados {len(ofertas)} registros en la base de datos."
                 )
 
             return len(ofertas)
@@ -467,7 +466,9 @@ class DatabaseConnection(LoggerMixin):
             column_names = [description[0] for description in cursor.description]
             results = [dict(zip(column_names, row)) for row in rows]
 
-            self.logger.debug(f"Obtenidos {len(results)} registros (offset={offset}, limit={limit})")
+            self.logger.debug(
+                f"Obtenidos {len(results)} registros (offset={offset}, limit={limit})"
+            )
             return results
 
         except sqlite3.Error as e:
@@ -516,7 +517,9 @@ class DatabaseConnection(LoggerMixin):
             column_names = [description[0] for description in cursor.description]
             results = [dict(zip(column_names, row)) for row in rows]
 
-            self.logger.debug(f"IGE {ige}: Obtenidos {len(results)} postulantes (offset={offset}, limit={limit})")
+            self.logger.debug(
+                f"IGE {ige}: Obtenidos {len(results)} postulantes (offset={offset}, limit={limit})"
+            )
             return results
 
         except sqlite3.Error as e:
@@ -563,8 +566,10 @@ class DatabaseConnection(LoggerMixin):
             column_names = [description[0] for description in cursor.description]
             results = [dict(zip(column_names, row)) for row in rows]
 
-            self.logger.debug(f"Obtenidos {len(results)} ofertas con estado '{estado}'" +
-                          (f" y distrito '{distrito}'" if distrito else ""))
+            self.logger.debug(
+                f"Obtenidos {len(results)} ofertas con estado '{estado}'"
+                + (f" y distrito '{distrito}'" if distrito else "")
+            )
             return results
 
         except sqlite3.Error as e:

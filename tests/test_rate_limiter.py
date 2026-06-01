@@ -273,6 +273,7 @@ class TestRateLimitDecorator:
 
     def test_decorator_preserves_function_name(self):
         """El decorador preserva el nombre de la función."""
+
         @rate_limit(max_requests=10, period=1.0)
         def my_function():
             return "result"
@@ -281,6 +282,7 @@ class TestRateLimitDecorator:
 
     def test_decorator_preserves_docstring(self):
         """El decorador preserva el docstring."""
+
         @rate_limit(max_requests=10, period=1.0)
         def my_function():
             """Docstring de prueba."""
@@ -364,6 +366,7 @@ class TestRateLimiterEdgeCases:
 
     def test_decorator_with_args_kwargs(self):
         """El decorador pasa args y kwargs correctamente."""
+
         @rate_limit(max_requests=10, period=1.0)
         def my_function(a, b, c=None):
             return (a, b, c)

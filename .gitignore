@@ -70,3 +70,19 @@ dmypy.json
 
 # Ruff
 .ruff_cache/
+# Local Pi runtime state
+.atl/
+
+# AI/Code assistant tools
+.claude/
+.codeium/
+.codex/
+.config/
+.copilot/
+.cursor/
+.gemini/
+.kiro/
+.pi-lens/
+.qwen/
+.trae/
+.windsurf/

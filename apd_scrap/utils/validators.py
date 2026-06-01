@@ -109,9 +109,7 @@ class Validators(LoggerMixin):
         cuil_normalizado = cuil.replace("-", "")
 
         if len(cuil_normalizado) != 11:
-            raise ValidationError(
-                f"El CUIL debe tener 11 dígitos: {cuil}", "cuil"
-            )
+            raise ValidationError(f"El CUIL debe tener 11 dígitos: {cuil}", "cuil")
 
         if not cuil_normalizado.isdigit():
             raise ValidationError(f"El CUIL solo puede contener dígitos: {cuil}", "cuil")

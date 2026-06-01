@@ -234,8 +234,7 @@ def create_rate_limiter(config_name: str = "DEFAULT") -> RateLimiter:
     """
     if not hasattr(RateLimiterConfig, config_name):
         raise ValueError(
-            f"Configuración inválida: {config_name}. "
-            f"Usar: APD_MAIN, APD_POSTULANTES, DEFAULT"
+            f"Configuración inválida: {config_name}. Usar: APD_MAIN, APD_POSTULANTES, DEFAULT"
         )
 
     config = getattr(RateLimiterConfig, config_name)
