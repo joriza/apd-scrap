@@ -16,12 +16,6 @@ COLUMNAS: list[str] = [
     "martes",
     "acargodireccion",
     "cuilautor",
-    "cuil_puntero",
-    "cuil_ganador",
-    "puntaje_puntero",
-    "nombre_puntero",
-    "puntaje_ganador",
-    "nombre_ganador",
     "supl_hasta",
     "turno",
     "idoferta",
@@ -115,12 +109,6 @@ CREATE TABLE IF NOT EXISTS ofertas (
     martes TEXT,
     acargodireccion TEXT,
     cuilautor TEXT,
-    cuil_puntero TEXT,
-    cuil_ganador TEXT,
-    puntaje_puntero REAL,
-    nombre_puntero TEXT,
-    puntaje_ganador REAL,
-    nombre_ganador TEXT,
     supl_hasta TEXT,
     turno TEXT,
     idoferta INTEGER,
@@ -165,7 +153,6 @@ CREATE TABLE IF NOT EXISTS ofertas (
 # SQL para crear la tabla de postulantes
 CREATE_TABLE_POSTULANTES_SQL: str = """
 CREATE TABLE IF NOT EXISTS postulantes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
     ige INTEGER NOT NULL,
     cuil TEXT,
     puntaje REAL,
@@ -187,6 +174,7 @@ CREATE TABLE IF NOT EXISTS postulantes (
     pun_res REAL,
     tienehojaruta TEXT,
     cuilautor TEXT,
+    PRIMARY KEY (ige, cuil),
     FOREIGN KEY (ige) REFERENCES ofertas(ige) ON DELETE CASCADE
 );
 """
@@ -242,32 +230,6 @@ def get_estados_values() -> list[str]:
         ['Anulada', 'Desierta', 'DESIGNADA', ...]
     """
     return ESTADOS_VALIDOS[:]
-
-
-# SQL para migración - agregar cuil_puntero, cuil_ganador, puntaje_puntero, nombre_puntero a ofertas existentes
-ALTER_TABLE_ADD_CUIL_PUNTERO: str = """
-ALTER TABLE ofertas ADD COLUMN cuil_puntero TEXT;
-"""
-
-ALTER_TABLE_ADD_CUIL_GANADOR: str = """
-ALTER TABLE ofertas ADD COLUMN cuil_ganador TEXT;
-"""
-
-ALTER_TABLE_ADD_PUNTAJE_PUNTERO: str = """
-ALTER TABLE ofertas ADD COLUMN puntaje_puntero REAL;
-"""
-
-ALTER_TABLE_ADD_NOMBRE_PUNTERO: str = """
-ALTER TABLE ofertas ADD COLUMN nombre_puntero TEXT;
-"""
-
-ALTER_TABLE_ADD_PUNTAJE_GANADOR: str = """
-ALTER TABLE ofertas ADD COLUMN puntaje_ganador REAL;
-"""
-
-ALTER_TABLE_ADD_NOMBRE_GANADOR: str = """
-ALTER TABLE ofertas ADD COLUMN nombre_ganador TEXT;
-"""
 
 
 def get_insert_postulantes_sql() -> str:

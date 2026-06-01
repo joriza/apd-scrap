@@ -14,12 +14,6 @@ from apd_scrap.database.schema import (
     CREATE_TABLE_ESTADOS_SQL,
     CREATE_TABLE_POSTULANTES_SQL,
     COLUMNAS_POSTULANTES,
-    ALTER_TABLE_ADD_CUIL_PUNTERO,
-    ALTER_TABLE_ADD_CUIL_GANADOR,
-    ALTER_TABLE_ADD_PUNTAJE_PUNTERO,
-    ALTER_TABLE_ADD_NOMBRE_PUNTERO,
-    ALTER_TABLE_ADD_PUNTAJE_GANADOR,
-    ALTER_TABLE_ADD_NOMBRE_GANADOR,
     get_insert_sql,
     get_insert_estados_sql,
     get_insert_postulantes_sql,
@@ -183,28 +177,6 @@ class DatabaseConnection(LoggerMixin):
             cursor.execute(CREATE_TABLE_ESTADOS_SQL)
             cursor.execute(CREATE_TABLE_SQL)
             cursor.execute(CREATE_TABLE_POSTULANTES_SQL)
-            
-            # Migración: agregar nuevos campos si no existen
-            cursor.execute("PRAGMA table_info(ofertas)")
-            columnas_existentes = [row[1] for row in cursor.fetchall()]
-            
-            migraciones = [
-                ("cuil_puntero", ALTER_TABLE_ADD_CUIL_PUNTERO),
-                ("cuil_ganador", ALTER_TABLE_ADD_CUIL_GANADOR),
-                ("puntaje_puntero", ALTER_TABLE_ADD_PUNTAJE_PUNTERO),
-                ("nombre_puntero", ALTER_TABLE_ADD_NOMBRE_PUNTERO),
-                ("puntaje_ganador", ALTER_TABLE_ADD_PUNTAJE_GANADOR),
-                ("nombre_ganador", ALTER_TABLE_ADD_NOMBRE_GANADOR),
-            ]
-            
-            for nombre_columna, sql_migracion in migraciones:
-                if nombre_columna not in columnas_existentes:
-                    try:
-                        cursor.execute(sql_migracion)
-                        self.logger.info(f"Columna {nombre_columna} agregada a la tabla ofertas")
-                    except sqlite3.OperationalError as e:
-                        self.logger.warning(f"No se pudo agregar {nombre_columna}: {e}")
-            
             conn.commit()
             self.logger.debug("Esquema de base de datos inicializado correctamente")
             return True
@@ -431,225 +403,68 @@ class DatabaseConnection(LoggerMixin):
         finally:
             self.close()
 
-    def update_cuil_puntero(self) -> int:
+    def save_postulantes(
+        self,
+        postulantes: list[dict[str, Any]],
+        ige: Optional[int] = None,
+    ) -> int:
         """
-        Actualiza los campos de puntero en la tabla ofertas.
+        Guarda o reemplaza postulantes en la base de datos.
 
-        Este método actualiza los campos cuil_puntero, puntaje_puntero y nombre_puntero
-        de la tabla ofertas con los datos del postulante designado (designado='S').
-        Si no hay postulante designado, usa los datos del postulante con mayor puntaje.
+        Este metodo inserta o reemplaza postulantes en la tabla 'postulantes'
+        usando INSERT OR REPLACE. La PK es (ige, cuil), por lo que
+        si se repite la consulta con el mismo IGE y CUIL, se pisan los registros.
+
+        Args:
+            postulantes: Lista de diccionarios donde cada diccionario
+                representa un postulante con sus campos como claves
+            ige: IGE de la oferta asociada (opcional, solo para logging)
 
         Returns:
-            int: Número de ofertas actualizadas. Retorna 0 si hay error.
+            int: Numero de registros guardados/reemplazados. Retorna 0
+                si la lista esta vacia o hubo un error
 
         Example:
-            >>> db = DatabaseConnection()
-            >>> db.initialize_schema()
-            >>> # Supongamos que hay postulantes para algunas ofertas
-            >>> actualizados = db.update_cuil_puntero()
-            >>> print(f"Ofertas actualizadas: {actualizados}")
-            Ofertas actualizadas: 15
-
-        Note:
-            Este método busca en la tabla postulantes y actualiza:
-            1. Ofertas con postulante designado (designado='S')
-            2. Ofertas sin designado pero con postulante de mayor puntaje
+            >>> postulantes = [
+            ...     {'ige': 4067362, 'cuil': '20217355827', 'designado': 'N', ...},
+            ...     {'ige': 4067362, 'cuil': '20217355828', 'designado': 'S', ...}
+            ... ]
+            >>> with DatabaseConnection() as db:
+            ...     db.initialize_schema()
+            ...     registros = db.save_postulantes(postulantes, ige=4067362)
+            ...     print(f"Guardados: {registros}")
+            Guardados: 2
         """
+        if not postulantes:
+            self.logger.debug("No hay postulantes para guardar en la base de datos.")
+            return 0
+
         try:
             conn = self.connect()
             cursor = conn.cursor()
-            actualizados = 0
+            sql = get_insert_postulantes_sql()
 
-            # Primero: actualizar ofertas con postulante designado
-            update_designado = """
-            UPDATE ofertas
-            SET cuil_puntero = (
-                SELECT p.cuil
-                FROM postulantes p
-                WHERE p.ige = ofertas.ige AND p.designado = 'S'
-                LIMIT 1
-            ),
-            puntaje_puntero = (
-                SELECT p.puntaje
-                FROM postulantes p
-                WHERE p.ige = ofertas.ige AND p.designado = 'S'
-                LIMIT 1
-            ),
-            nombre_puntero = (
-                SELECT p.nombres
-                FROM postulantes p
-                WHERE p.ige = ofertas.ige AND p.designado = 'S'
-                LIMIT 1
-            )
-            WHERE ige IN (
-                SELECT DISTINCT ige FROM postulantes WHERE designado = 'S'
-            ) AND (cuil_puntero IS NULL OR puntaje_puntero IS NULL OR nombre_puntero IS NULL);
-            """
-            cursor.execute(update_designado)
-            designados = cursor.rowcount
-            actualizados += designados
-
-            # Segundo: actualizar ofertas sin designado (usar mayor puntaje)
-            update_max_puntaje = """
-            UPDATE ofertas
-            SET cuil_puntero = (
-                SELECT p.cuil
-                FROM postulantes p
-                WHERE p.ige = ofertas.ige
-                ORDER BY p.puntaje DESC
-                LIMIT 1
-            ),
-            puntaje_puntero = (
-                SELECT p.puntaje
-                FROM postulantes p
-                WHERE p.ige = ofertas.ige
-                ORDER BY p.puntaje DESC
-                LIMIT 1
-            ),
-            nombre_puntero = (
-                SELECT p.nombres
-                FROM postulantes p
-                WHERE p.ige = ofertas.ige
-                ORDER BY p.puntaje DESC
-                LIMIT 1
-            )
-            WHERE ige IN (
-                SELECT DISTINCT ige FROM postulantes WHERE ige NOT IN (
-                    SELECT DISTINCT ige FROM postulantes WHERE designado = 'S'
-                )
-            ) AND (cuil_puntero IS NULL OR puntaje_puntero IS NULL OR nombre_puntero IS NULL);
-            """
-            cursor.execute(update_max_puntaje)
-            max_puntaje = cursor.rowcount
-            actualizados += max_puntaje
+            for postulante in postulantes:
+                valores = tuple(postulante.get(col) for col in COLUMNAS_POSTULANTES)
+                cursor.execute(sql, valores)
 
             conn.commit()
 
-            if actualizados > 0:
+            if ige:
                 self.logger.info(
-                    f"Punteros actualizados: {designados} designados, "
-                    f"{max_puntaje} por puntaje (total: {actualizados})"
+                    f"IGE {ige}: {len(postulantes)} postulantes guardados/reemplazados en BD."
                 )
             else:
-                self.logger.debug("No se actualizaron punteros (no hay postulantes nuevos)")
-
-            return actualizados
-
-        except sqlite3.Error as e:
-            self.logger.error(f"Error al actualizar punteros: {e}")
-            return 0
-        finally:
-            self.close()
-
-    def update_cuil_ganador(self) -> int:
-        """
-        Actualiza los campos de ganador consultando a la API.
-
-        Este método recorre cada oferta que cumple:
-        - ige > 4097270
-        - estado IN ('DESIGNADA', 'RENUNCIADA')
-        - cuil_ganador IS NULL
-
-        Para cada oferta, consulta a la API de postulantes:
-        - idoferta = ige
-        - designado = S
-
-        Rellena con datos del postulante designado:
-        - cuil_ganador ← postulante.cuil
-        - puntaje_ganador ← postulante.puntaje
-        - nombre_ganador ← postulante.nombres
-
-        Returns:
-            int: Número de ofertas actualizadas. Retorna 0 si hay error.
-
-        Example:
-            >>> db = DatabaseConnection()
-            >>> db.initialize_schema()
-            >>> actualizados = db.update_cuil_ganador()
-            >>> print(f"Ofertas actualizadas: {actualizados}")
-            Ofertas actualizadas: 3
-
-        Note:
-            Este método requiere que se haya importado APDScraper.
-            Consulta la API para cada oferta individualmente.
-        """
-        try:
-            # Importar aquí para evitar import circular
-            from apd_scrap.scrapers.apd_scraper import APDScraper
-            
-            conn = self.connect()
-            cursor = conn.cursor()
-            
-            # Obtener ofertas que cumplen condiciones
-            cursor.execute("""
-                SELECT ige 
-                FROM ofertas 
-                WHERE ige > 4097270 
-                  AND estado IN ('DESIGNADA', 'RENUNCIADA')
-                  AND cuil_ganador IS NULL
-                ORDER BY ige
-            """)
-            ofertas = [row[0] for row in cursor.fetchall()]
-            
-            if not ofertas:
-                self.logger.debug("No hay ofertas para actualizar (ige > 4097270, DESIGNADA/RENUNCIADA, sin ganador)")
-                return 0
-            
-            self.logger.info(f"Ofertas a procesar: {len(ofertas)} (ige > 4097270, DESIGNADA/RENUNCIADA)")
-            
-            scraper = APDScraper()
-            actualizados = 0
-            
-            for ige in ofertas:
-                try:
-                    # Consultar API de postulantes con designado=S
-                    data = scraper.fetch_postulantes(ige, designado='S')
-                    
-                    if data:
-                        docs = data.get('response', {}).get('docs', [])
-                        
-                        # Usar el primer postulante (debe ser el designado)
-                        if docs:
-                            postulante_designado = docs[0]
-                            
-                            # Actualizar campos ganador
-                            cursor.execute("""
-                                UPDATE ofertas 
-                                SET cuil_ganador = ?,
-                                    puntaje_ganador = ?,
-                                    nombre_ganador = ?
-                                WHERE ige = ?
-                            """, (
-                                postulante_designado.get('cuil'),
-                                postulante_designado.get('puntaje'),
-                                postulante_designado.get('nombres'),
-                                ige
-                            ))
-                            actualizados += 1
-                            self.logger.debug(
-                                f"IGE {ige}: ganador {postulante_designado.get('nombres')}"
-                            )
-                        else:
-                            self.logger.debug(f"IGE {ige}: no hay postulante designado en API")
-                    else:
-                        self.logger.warning(f"IGE {ige}: no se obtuvieron postulantes de la API")
-                        
-                except Exception as e:
-                    self.logger.error(f"Error al procesar IGE {ige}: {e}")
-                    continue
-            
-            conn.commit()
-            scraper.close()
-            
-            if actualizados > 0:
                 self.logger.info(
-                    f"Ganador actualizado: {actualizados} ofertas (consultando API individualmente)"
+                    f"Guardados/reemplazados {len(postulantes)} postulantes "
+                    f"en la base de datos."
                 )
-            
-            return actualizados
+
+            return len(postulantes)
 
         except sqlite3.Error as e:
-            self.logger.error(f"Error al actualizar ganadores: {e}")
+            self.logger.error(f"Error al guardar postulantes en la base de datos: {e}")
             return 0
         finally:
             self.close()
+
