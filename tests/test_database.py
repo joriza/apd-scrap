@@ -102,7 +102,7 @@ class TestDatabaseConnection:
         assert result == 0
 
     @patch("apd_scrap.database.connection.sqlite3.connect")
-    def test_save_ofertas_inserta_registros(self, mock_connect, db_connection):
+    def test_save_ofertas_inserta_registros(self, mock_connect):
         """Verifica que save_ofertas inserte registros."""
         mock_conn = Mock()
         mock_cursor = Mock()
@@ -111,13 +111,13 @@ class TestDatabaseConnection:
         mock_conn.__exit__ = Mock(return_value=None)
         mock_connect.return_value = mock_conn
 
-        ofertas = [{"ige": 1, "estado": "Publicada"}]
-        result = db_connection.save_ofertas(ofertas)
-
-        assert result == 1
+        with DatabaseConnection() as db:
+            ofertas = [{"ige": 1, "estado": "Publicada"}]
+            result = db.save_ofertas(ofertas)
+            assert result == 1
 
     @patch("apd_scrap.database.connection.sqlite3.connect")
-    def test_save_ofertas_con_distrito(self, mock_connect, db_connection):
+    def test_save_ofertas_con_distrito(self, mock_connect):
         """Verifica logging con distrito."""
         mock_conn = Mock()
         mock_cursor = Mock()
@@ -126,13 +126,13 @@ class TestDatabaseConnection:
         mock_conn.__exit__ = Mock(return_value=None)
         mock_connect.return_value = mock_conn
 
-        ofertas = [{"ige": 1, "estado": "Publicada"}]
-        result = db_connection.save_ofertas(ofertas, distrito="MERLO")
-
-        assert result == 1
+        with DatabaseConnection() as db:
+            ofertas = [{"ige": 1, "estado": "Publicada"}]
+            result = db.save_ofertas(ofertas, distrito="MERLO")
+            assert result == 1
 
     @patch("apd_scrap.database.connection.sqlite3.connect")
-    def test_save_ofertas_con_error_sqlite(self, mock_connect, db_connection):
+    def test_save_ofertas_con_error_sqlite(self, mock_connect):
         """Verifica manejo de errores SQLite al guardar."""
         mock_conn = Mock()
         mock_conn.cursor.side_effect = sqlite3.Error("Error simulado")
@@ -140,13 +140,13 @@ class TestDatabaseConnection:
         mock_conn.__exit__ = Mock(return_value=None)
         mock_connect.return_value = mock_conn
 
-        ofertas = [{"ige": 1, "estado": "Publicada"}]
-        result = db_connection.save_ofertas(ofertas)
-
-        assert result == 0
+        with DatabaseConnection() as db:
+            ofertas = [{"ige": 1, "estado": "Publicada"}]
+            result = db.save_ofertas(ofertas)
+            assert result == 0
 
     @patch("apd_scrap.database.connection.sqlite3.connect")
-    def test_get_count(self, mock_connect, db_connection):
+    def test_get_count(self, mock_connect):
         """Verifica que get_count retorne el total de registros."""
         mock_conn = Mock()
         mock_cursor = Mock()
@@ -156,12 +156,12 @@ class TestDatabaseConnection:
         mock_conn.__exit__ = Mock(return_value=None)
         mock_connect.return_value = mock_conn
 
-        result = db_connection.get_count()
-
-        assert result == 100
+        with DatabaseConnection() as db:
+            result = db.get_count()
+            assert result == 100
 
     @patch("apd_scrap.database.connection.sqlite3.connect")
-    def test_get_count_con_error(self, mock_connect, db_connection):
+    def test_get_count_con_error(self, mock_connect):
         """Verifica get_count con error."""
         mock_conn = Mock()
         mock_conn.cursor.side_effect = sqlite3.Error("Error simulado")
@@ -169,12 +169,12 @@ class TestDatabaseConnection:
         mock_conn.__exit__ = Mock(return_value=None)
         mock_connect.return_value = mock_conn
 
-        result = db_connection.get_count()
-
-        assert result == 0
+        with DatabaseConnection() as db:
+            result = db.get_count()
+            assert result == 0
 
     @patch("apd_scrap.database.connection.sqlite3.connect")
-    def test_get_distrito_count(self, mock_connect, db_connection):
+    def test_get_distrito_count(self, mock_connect):
         """Verifica que get_distrito_count retorne registros por distrito."""
         mock_conn = Mock()
         mock_cursor = Mock()
@@ -184,12 +184,12 @@ class TestDatabaseConnection:
         mock_conn.__exit__ = Mock(return_value=None)
         mock_connect.return_value = mock_conn
 
-        result = db_connection.get_distrito_count("MERLO")
-
-        assert result == 50
+        with DatabaseConnection() as db:
+            result = db.get_distrito_count("MERLO")
+            assert result == 50
 
     @patch("apd_scrap.database.connection.sqlite3.connect")
-    def test_get_distrito_count_con_error(self, mock_connect, db_connection):
+    def test_get_distrito_count_con_error(self, mock_connect):
         """Verifica get_distrito_count con error."""
         mock_conn = Mock()
         mock_conn.cursor.side_effect = sqlite3.Error("Error simulado")
@@ -197,13 +197,13 @@ class TestDatabaseConnection:
         mock_conn.__exit__ = Mock(return_value=None)
         mock_connect.return_value = mock_conn
 
-        result = db_connection.get_distrito_count("MERLO")
+        with DatabaseConnection() as db:
+            result = db.get_distrito_count("MERLO")
+            assert result == 0
 
-        assert result == 0
-
-    def test_save_ofertas_con_columnas_completas(self, db_connection):
+    def test_save_ofertas_con_columnas_completas(self):
         """Verifica que se usen todas las columnas definidas."""
-        with patch.object(db_connection, "connect") as mock_connect:
+        with patch("apd_scrap.database.connection.sqlite3.connect") as mock_connect:
             mock_conn = Mock()
             mock_cursor = Mock()
             mock_conn.cursor.return_value = mock_cursor
@@ -211,11 +211,12 @@ class TestDatabaseConnection:
             mock_conn.__exit__ = Mock(return_value=None)
             mock_connect.return_value = mock_conn
 
-            # Crear oferta con todas las columnas (con valores None)
-            oferta = {col: None for col in COLUMNAS}
-            ofertas = [oferta]
+            with DatabaseConnection() as db:
+                # Crear oferta con todas las columnas (con valores None)
+                oferta = {col: None for col in COLUMNAS}
+                ofertas = [oferta]
 
-            result = db_connection.save_ofertas(ofertas)
+                result = db.save_ofertas(ofertas)
 
-            assert result == 1
-            mock_cursor.execute.assert_called()
+                assert result == 1
+                mock_cursor.execute.assert_called()
