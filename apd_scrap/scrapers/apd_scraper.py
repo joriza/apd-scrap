@@ -14,6 +14,7 @@ from apd_scrap.config import Config
 from apd_scrap.utils.logging import LoggerMixin
 from apd_scrap.utils.ssl_adapter import CustomHttpAdapter, LegacyHttpAdapter
 from apd_scrap.utils.retry import retry_with_backoff, RetryError, RetryConfig
+from apd_scrap.utils.rate_limiter import create_rate_limiter, rate_limit
 
 
 class APIResponse:
@@ -90,6 +91,7 @@ class APDScraper(LoggerMixin):
         """
         self.config: Config = config or Config()
         self.session: requests.Session = self._create_session()
+        self.rate_limiter = create_rate_limiter("APD_MAIN")
 
     def _create_session(self) -> requests.Session:
         """
@@ -221,7 +223,11 @@ class APDScraper(LoggerMixin):
             - Maneja RequestException y JSONDecodeError silenciosamente
             - Reintenta automáticamente con backoff exponencial
             - Máximo 3 reintentos con delays de 2s, 4s, 8s
+            - Aplica rate limiting automáticamente
         """
+        # Aplicar rate limiting antes de hacer la petición
+        self.rate_limiter.wait_if_needed()
+
         url = url_override or self.config.API_BASE_URL
         try:
             response = self.session.get(url, params=params, timeout=self.config.API_TIMEOUT)

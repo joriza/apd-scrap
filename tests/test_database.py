@@ -237,9 +237,7 @@ class TestDatabaseConnection:
         mock_connect.return_value = mock_conn
 
         with DatabaseConnection() as db:
-            postulantes = [
-                {"ige": 4067362, "cuil": "20217355827", "designado": "N"}
-            ]
+            postulantes = [{"ige": 4067362, "cuil": "20217355827", "designado": "N"}]
             result = db.save_postulantes(postulantes, ige=4067362)
             assert result == 1
 
@@ -254,9 +252,7 @@ class TestDatabaseConnection:
         mock_connect.return_value = mock_conn
 
         with DatabaseConnection() as db:
-            postulantes = [
-                {"ige": 4067362, "cuil": "20217355827", "designado": "N"}
-            ]
+            postulantes = [{"ige": 4067362, "cuil": "20217355827", "designado": "N"}]
             result = db.save_postulantes(postulantes, ige=4067362)
             assert result == 1
 
@@ -271,9 +267,7 @@ class TestDatabaseConnection:
         mock_connect.return_value = mock_conn
 
         with DatabaseConnection() as db:
-            postulantes = [
-                {"ige": 4067362, "cuil": "20217355827", "designado": "N"}
-            ]
+            postulantes = [{"ige": 4067362, "cuil": "20217355827", "designado": "N"}]
             result = db.save_postulantes(postulantes)
             assert result == 1
 
@@ -287,9 +281,7 @@ class TestDatabaseConnection:
         mock_connect.return_value = mock_conn
 
         with DatabaseConnection() as db:
-            postulantes = [
-                {"ige": 4067362, "cuil": "20217355827", "designado": "N"}
-            ]
+            postulantes = [{"ige": 4067362, "cuil": "20217355827", "designado": "N"}]
             result = db.save_postulantes(postulantes)
             assert result == 0
 
@@ -321,8 +313,6 @@ class TestDatabaseConnection:
         mock_connect.return_value = mock_conn
 
         with DatabaseConnection() as db:
-            postulantes = [
-                {"ige": 4067362, "cuil": "20217355827", "designado": "N"}
-            ]
+            postulantes = [{"ige": 4067362, "cuil": "20217355827", "designado": "N"}]
             result = db.save_postulantes(postulantes)
             assert result == 0

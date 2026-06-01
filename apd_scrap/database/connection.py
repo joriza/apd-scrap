@@ -270,12 +270,11 @@ class DatabaseConnection(LoggerMixin):
 
             if distrito:
                 self.logger.info(
-                    f"Distrito {distrito}: {len(ofertas)} registros "
-                    f"guardados/actualizados en BD."
+                    f"Distrito {distrito}: {len(ofertas)} registros guardados/actualizados en BD."
                 )
             else:
                 self.logger.info(
-                    f"Guardados/actualizados {len(ofertas)} registros " f"en la base de datos."
+                    f"Guardados/actualizados {len(ofertas)} registros en la base de datos."
                 )
 
             return len(ofertas)
@@ -395,8 +394,7 @@ class DatabaseConnection(LoggerMixin):
                 )
             else:
                 self.logger.info(
-                    f"Guardados/reemplazados {len(postulantes)} postulantes "
-                    f"en la base de datos."
+                    f"Guardados/reemplazados {len(postulantes)} postulantes en la base de datos."
                 )
 
             return len(postulantes)
