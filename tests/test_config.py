@@ -153,7 +153,7 @@ def test_validation():
         print(f"[OK] Configuración válida: {is_valid}")
     except ConfigError as e:
         print(f"[ERROR] Error inesperado: {e}")
-        return False
+        assert False, f"Error inesperado: {e}"
 
     # Configuración inválida (timeout negativo)
     yaml_invalid = """
@@ -170,7 +170,7 @@ api:
         try:
             config_invalid.validate()
             print("[ERROR] Debería haber fallado la validación")
-            return False
+            assert False, "Debería haber fallado la validación"
         except ConfigError as e:
             print(f"[OK] Validación detectó error: {e}")
     finally:
