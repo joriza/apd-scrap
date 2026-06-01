@@ -230,8 +230,7 @@ class DatabaseConnection(LoggerMixin):
         Guarda o actualiza una lista de ofertas en la base de datos.
 
         Este método inserta o actualiza ofertas en la tabla 'ofertas'
-        usando INSERT OR REPLACE, lo que significa que si un registro
-        con el mismo valor de 'ige' ya existe, será actualizado.
+        usando INSERT OR REPLACE con batch insert para mejor rendimiento.
 
         Args:
             ofertas: Lista de diccionarios donde cada diccionario
@@ -262,19 +261,20 @@ class DatabaseConnection(LoggerMixin):
             cursor = conn.cursor()
             sql = get_insert_sql()
 
-            for oferta in ofertas:
-                valores = tuple(oferta.get(col) for col in COLUMNAS)
-                cursor.execute(sql, valores)
+            # Usar executemany para batch insert (más eficiente)
+            values_list = [tuple(oferta.get(col) for col in COLUMNAS) for oferta in ofertas]
+            cursor.executemany(sql, values_list)
 
             conn.commit()
 
             if distrito:
                 self.logger.info(
-                    f"Distrito {distrito}: {len(ofertas)} registros guardados/actualizados en BD."
+                    f"Distrito {distrito}: {len(ofertas)} registros "
+                    f"guardados/actualizados en BD."
                 )
             else:
                 self.logger.info(
-                    f"Guardados/actualizados {len(ofertas)} registros en la base de datos."
+                    f"Guardados/actualizados {len(ofertas)} registros " f"en la base de datos."
                 )
 
             return len(ofertas)
@@ -350,8 +350,9 @@ class DatabaseConnection(LoggerMixin):
         Guarda o reemplaza postulantes en la base de datos.
 
         Este metodo inserta o reemplaza postulantes en la tabla 'postulantes'
-        usando INSERT OR REPLACE. La PK es (ige, cuil), por lo que
-        si se repite la consulta con el mismo IGE y CUIL, se pisan los registros.
+        usando INSERT OR REPLACE con batch insert para mejor rendimiento.
+        La PK es (ige, cuil), por lo que si se repite la consulta con el
+        mismo IGE y CUIL, se pisan los registros.
 
         Args:
             postulantes: Lista de diccionarios donde cada diccionario
@@ -382,9 +383,12 @@ class DatabaseConnection(LoggerMixin):
             cursor = conn.cursor()
             sql = get_insert_postulantes_sql()
 
-            for postulante in postulantes:
-                valores = tuple(postulante.get(col) for col in COLUMNAS_POSTULANTES)
-                cursor.execute(sql, valores)
+            # Usar executemany para batch insert (más eficiente)
+            values_list = [
+                tuple(postulante.get(col) for col in COLUMNAS_POSTULANTES)
+                for postulante in postulantes
+            ]
+            cursor.executemany(sql, values_list)
 
             conn.commit()
 
@@ -402,5 +406,208 @@ class DatabaseConnection(LoggerMixin):
         except sqlite3.Error as e:
             self.logger.error(f"Error al guardar postulantes en la base de datos: {e}")
             return 0
+        finally:
+            self.close()
+
+    def get_ofertas_paginated(
+        self,
+        offset: int = 0,
+        limit: int = 1000,
+        distrito: Optional[str] = None,
+        estado: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Obtiene ofertas de forma paginada.
+
+        Este método permite obtener grandes cantidades de registros
+        en lotes paginados, reduciendo el uso de memoria.
+
+        Args:
+            offset: Número de registros a saltar (default: 0)
+            limit: Número máximo de registros a retornar (default: 1000)
+            distrito: Filtrar por distrito (opcional)
+            estado: Filtrar por estado (opcional)
+
+        Returns:
+            list[dict[str, Any]]: Lista de ofertas
+
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     db.initialize_schema()
+            ...     # Obtener primeros 1000 registros
+            ...     batch1 = db.get_ofertas_paginated(0, 1000)
+            ...     # Obtener siguientes 1000 registros
+            ...     batch2 = db.get_ofertas_paginated(1000, 1000)
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+
+            # Construir query base
+            where_clauses = []
+            params = []
+
+            if distrito:
+                where_clauses.append("descdistrito = ?")
+                params.append(distrito.upper())
+
+            if estado:
+                where_clauses.append("estado = ?")
+                params.append(estado)
+
+            where_sql = "".join([f" WHERE {clause}" for clause in where_clauses])
+            params.extend([limit, offset])
+
+            sql = f"SELECT * FROM ofertas{where_sql} ORDER BY ige LIMIT ? OFFSET ?"
+
+            cursor.execute(sql, params)
+            rows = cursor.fetchall()
+
+            # Convertir a lista de diccionarios
+            column_names = [description[0] for description in cursor.description]
+            results = [dict(zip(column_names, row)) for row in rows]
+
+            self.logger.debug(f"Obtenidos {len(results)} registros (offset={offset}, limit={limit})")
+            return results
+
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al obtener ofertas paginadas: {e}")
+            return []
+        finally:
+            self.close()
+
+    def get_postulantes_paginated(
+        self,
+        ige: int,
+        offset: int = 0,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """
+        Obtiene postulantes de un IGE de forma paginada.
+
+        Este método permite obtener grandes cantidades de postulantes
+        en lotes paginados, reduciendo el uso de memoria.
+
+        Args:
+            ige: IGE de la oferta
+            offset: Número de registros a saltar (default: 0)
+            limit: Número máximo de registros a retornar (default: 100)
+
+        Returns:
+            list[dict[str, Any]]: Lista de postulantes
+
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     db.initialize_schema()
+            ...     # Obtener primeros 100 postulantes
+            ...     batch1 = db.get_postulantes_paginated(4067362, 0, 100)
+            ...     # Obtener siguientes 100 postulantes
+            ...     batch2 = db.get_postulantes_paginated(4067362, 100, 100)
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+
+            sql = "SELECT * FROM postulantes WHERE ige = ? ORDER BY ige LIMIT ? OFFSET ?"
+            cursor.execute(sql, (ige, limit, offset))
+            rows = cursor.fetchall()
+
+            # Convertir a lista de diccionarios
+            column_names = [description[0] for description in cursor.description]
+            results = [dict(zip(column_names, row)) for row in rows]
+
+            self.logger.debug(f"IGE {ige}: Obtenidos {len(results)} postulantes (offset={offset}, limit={limit})")
+            return results
+
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al obtener postulantes paginados para IGE {ige}: {e}")
+            return []
+        finally:
+            self.close()
+
+    def get_ofertas_by_estado_distrito(
+        self, estado: str, distrito: Optional[str] = None
+    ) -> list[dict[str, Any]]:
+        """
+        Obtiene ofertas filtradas por estado y opcionalmente por distrito.
+
+        Usa el índice idx_ofertas_estado_distrito para mejor rendimiento.
+
+        Args:
+            estado: Estado a filtrar (ej: 'Publicada', 'DESIGNADA')
+            distrito: Filtrar por distrito (opcional)
+
+        Returns:
+            list[dict[str, Any]]: Lista de ofertas
+
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     db.initialize_schema()
+            ...     publicadas = db.get_ofertas_by_estado_distrito('Publicada')
+            ...     designadas_merlo = db.get_ofertas_by_estado_distrito('DESIGNADA', 'MERLO')
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+
+            if distrito:
+                sql = "SELECT * FROM ofertas WHERE estado = ? AND descdistrito = ?"
+                cursor.execute(sql, (estado, distrito.upper()))
+            else:
+                sql = "SELECT * FROM ofertas WHERE estado = ?"
+                cursor.execute(sql, (estado,))
+
+            rows = cursor.fetchall()
+
+            # Convertir a lista de diccionarios
+            column_names = [description[0] for description in cursor.description]
+            results = [dict(zip(column_names, row)) for row in rows]
+
+            self.logger.debug(f"Obtenidos {len(results)} ofertas con estado '{estado}'" +
+                          (f" y distrito '{distrito}'" if distrito else ""))
+            return results
+
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al obtener ofertas por estado/distrito: {e}")
+            return []
+        finally:
+            self.close()
+
+    def get_ganador_postulante(self, ige: int) -> Optional[dict[str, Any]]:
+        """
+        Obtiene el postulante designado de una oferta.
+
+        Args:
+            ige: IGE de la oferta
+
+        Returns:
+            Optional[dict[str, Any]]: Postulante designado o None si no existe
+
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     ganador = db.get_ganador_postulante(4067362)
+            ...     if ganador:
+            ...         print(f"Ganador: {ganador['nombres']}")
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+
+            sql = "SELECT * FROM postulantes WHERE ige = ? AND designado = 'S'"
+            cursor.execute(sql, (ige,))
+            row = cursor.fetchone()
+
+            if row:
+                column_names = [description[0] for description in cursor.description]
+                result = dict(zip(column_names, row))
+                self.logger.debug(f"Ganador encontrado para IGE {ige}")
+                return result
+            else:
+                self.logger.debug(f"No hay ganador para IGE {ige}")
+                return None
+
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al obtener ganador para IGE {ige}: {e}")
+            return None
         finally:
             self.close()

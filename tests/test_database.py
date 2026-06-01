@@ -219,7 +219,7 @@ class TestDatabaseConnection:
                 result = db.save_ofertas(ofertas)
 
                 assert result == 1
-                mock_cursor.execute.assert_called()
+                mock_cursor.executemany.assert_called()
 
     def test_save_postulantes_con_lista_vacia(self, db_connection):
         """Verifica que save_postulantes retorne 0 con lista vacía."""
