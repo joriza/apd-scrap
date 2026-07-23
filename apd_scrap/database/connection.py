@@ -616,3 +616,154 @@ class DatabaseConnection(LoggerMixin):
             return None
         finally:
             self.close()
+
+    # Métodos para exportación a Excel
+    
+    def get_count(self, table_name: str = "ofertas") -> int:
+        """
+        Obtiene el número total de registros en una tabla específica.
+        
+        Args:
+            table_name: Nombre de la tabla (default: "ofertas")
+            
+        Returns:
+            int: Número total de registros en la tabla especificada
+            
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     total_ofertas = db.get_count("ofertas")
+            ...     total_postulantes = db.get_count("postulantes")
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            result = cursor.fetchone()
+            return result[0] if result else 0
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al obtener conteo de tabla {table_name}: {e}")
+            return 0
+        finally:
+            self.close()
+    
+    def get_all_ofertas_paginated(self, offset: int = 0, limit: int = None) -> list[dict[str, Any]]:
+        """
+        Obtiene todas las ofertas con paginación para exportación.
+        
+        Args:
+            offset: Número de registros a saltar (default: 0)
+            limit: Límite de registros (None para todos)
+            
+        Returns:
+            list[dict[str, Any]]: Lista de ofertas
+            
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     # Obtener primeros 10000 registros
+            ...     batch = db.get_all_ofertas_paginated(0, 10000)
+        """
+        if limit is None:
+            # Obtener todos los registros sin límite
+            sql = "SELECT * FROM ofertas ORDER BY ige"
+        else:
+            sql = "SELECT * FROM ofertas ORDER BY ige LIMIT ? OFFSET ?"
+            
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            
+            if limit is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, (limit, offset))
+                
+            rows = cursor.fetchall()
+            
+            # Convertir a lista de diccionarios
+            column_names = [description[0] for description in cursor.description]
+            results = [dict(zip(column_names, row)) for row in rows]
+            
+            self.logger.debug(f"Obtenidos {len(results)} ofertas para exportación")
+            return results
+            
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al obtener ofertas para exportación: {e}")
+            return []
+        finally:
+            self.close()
+    
+    def get_all_postulantes_paginated(self, offset: int = 0, limit: int = None) -> list[dict[str, Any]]:
+        """
+        Obtiene todos los postulantes con paginación para exportación.
+        
+        Args:
+            offset: Número de registros a saltar (default: 0)
+            limit: Límite de registros (None para todos)
+            
+        Returns:
+            list[dict[str, Any]]: Lista de postulantes
+            
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     # Obtener primeros 10000 registros
+            ...     batch = db.get_all_postulantes_paginated(0, 10000)
+        """
+        if limit is None:
+            # Obtener todos los registros sin límite
+            sql = "SELECT * FROM postulantes ORDER BY ige, cuil"
+        else:
+            sql = "SELECT * FROM postulantes ORDER BY ige, cuil LIMIT ? OFFSET ?"
+            
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            
+            if limit is None:
+                cursor.execute(sql)
+            else:
+                cursor.execute(sql, (limit, offset))
+                
+            rows = cursor.fetchall()
+            
+            # Convertir a lista de diccionarios
+            column_names = [description[0] for description in cursor.description]
+            results = [dict(zip(column_names, row)) for row in rows]
+            
+            self.logger.debug(f"Obtenidos {len(results)} postulantes para exportación")
+            return results
+            
+        except sqlite3.Error as e:
+            self.logger.error(f"Error al obtener postulantes para exportación: {e}")
+            return []
+        finally:
+            self.close()
+    
+    def get_distrito_count(self, distrito: str) -> int:
+        """
+        Obtiene el número de registros por distrito.
+        
+        Args:
+            distrito: Nombre del distrito (se convierte a mayúsculas)
+            
+        Returns:
+            int: Número de registros para el distrito especificado.
+                Retorna 0 si hay un error o no hay registros.
+                
+        Example:
+            >>> with DatabaseConnection() as db:
+            ...     merlo_count = db.get_distrito_count('merlo')
+            ...     print(f"Registros de Merlo: {merlo_count}")
+        """
+        try:
+            conn = self.connect()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM ofertas WHERE descdistrito = ?", (distrito.upper(),)
+            )
+            result = cursor.fetchone()
+            return result[0] if result else 0
+        except sqlite3.Error:
+            self.logger.error(f"Error al obtener conteo de registros para distrito {distrito}")
+            return 0
+        finally:
+            self.close()

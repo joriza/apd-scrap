@@ -36,6 +36,9 @@ develop-eggs/
 *.sqlite3
 #*.db
 
+# Archivos de exportación (generados por el scraper)
+*.xlsx
+
 # Archivos de entorno (contienen secretos y configuraciones locales)
 .env
 .env.*
@@ -75,6 +78,7 @@ dmypy.json
 
 # AI/Code assistant tools
 .claude/
+.codegraph/
 .codeium/
 .codex/
 .config/
@@ -82,7 +86,11 @@ dmypy.json
 .cursor/
 .gemini/
 .kiro/
+.opencode/
 .pi-lens/
 .qwen/
 .trae/
 .windsurf/
+
+# Helpers locales
+op.bat

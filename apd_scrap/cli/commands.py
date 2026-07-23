@@ -15,9 +15,15 @@ class CLIArgs(NamedTuple):
 
     Attributes:
         distrito: Nombre del distrito a consultar
+        export_excel: Si se debe exportar a formato Excel
+        export_format: Formato de exportación (ofertas, postulantes, both)
+        output_file: Ruta personalizada para archivo de salida
     """
 
     distrito: str
+    export_excel: bool = False
+    export_format: str = "ofertas"
+    output_file: Optional[str] = None
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -86,6 +92,37 @@ Para más información, visite: https://github.com/joriza/apd-scrap
         ),
     )
 
+    # Argumentos para exportación a Excel
+    parser.add_argument(
+        "--export-excel",
+        action="store_true",
+        help="Exportar datos a formato Excel después de descargar"
+    )
+
+    parser.add_argument(
+        "--export-format",
+        choices=["ofertas", "postulantes", "both"],
+        default="ofertas",
+        help=(
+            "Qué datos exportar a Excel. "
+            "ofertas: solo tabla de ofertas, "
+            "postulantes: solo tabla de postulantes, "
+            "both: ambas tablas en un archivo Excel "
+            "(default: %(default)s)"
+        ),
+    )
+
+    parser.add_argument(
+        "--output-file",
+        type=str,
+        metavar="RUTA",
+        help=(
+            "Ruta personalizada para archivo Excel de salida. "
+            "Si no se especifica, se genera un nombre automático "
+            "con timestamp en el directorio actual"
+        ),
+    )
+
     return parser
 
 
@@ -129,4 +166,17 @@ def parse_args(args: Optional[list[str]] = None) -> CLIArgs:
     if not parsed_args.distrito or not parsed_args.distrito.strip():
         parser.error("El distrito no puede estar vacío")
 
-    return CLIArgs(distrito=parsed_args.distrito.strip())
+    # Validar parámetros de exportación
+    if parsed_args.export_excel:
+        if parsed_args.export_format not in ["ofertas", "postulantes", "both"]:
+            parser.error("Formato de exportación inválido. Debe ser 'ofertas', 'postulantes' o 'both'")
+        
+        if parsed_args.output_file and not parsed_args.output_file.lower().endswith('.xlsx'):
+            parser.error("El archivo de salida debe tener extensión .xlsx")
+
+    return CLIArgs(
+        distrito=parsed_args.distrito.strip(),
+        export_excel=parsed_args.export_excel,
+        export_format=parsed_args.export_format,
+        output_file=parsed_args.output_file
+    )

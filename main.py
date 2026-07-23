@@ -14,6 +14,7 @@ import requests
 from apd_scrap.cli.commands import parse_args
 from apd_scrap.config import Config
 from apd_scrap.database.connection import DatabaseConnection
+from apd_scrap.exporters.excel_exporter import ExcelExporter
 from apd_scrap.scrapers.apd_scraper import APDScraper
 from apd_scrap.utils.logging import setup_logging
 
@@ -95,9 +96,24 @@ def main() -> int:
                 registros_guardados = db.save_ofertas(ofertas_docs, distrito)
 
                 if registros_guardados > 0:
-                    pass
+                    logger.info(f"Se guardaron {registros_guardados} ofertas en la base de datos")
                 else:
-                    pass
+                    logger.warning("No se guardaron ofertas en la base de datos")
+
+                # Exportar a Excel si se solicita
+                if args.export_excel:
+                    logger.info("Iniciando exportación a Excel...")
+                    try:
+                        with DatabaseConnection() as db_export:
+                            excel_exporter = ExcelExporter(db_export)
+                            excel_path = excel_exporter.export_data(
+                                export_type=args.export_format,
+                                output_path=args.output_file
+                            )
+                            logger.info(f"Exportación a Excel completada: {excel_path}")
+                    except Exception as e:
+                        logger.error(f"Error durante la exportación a Excel: {e}")
+                        return 1
 
     except requests.exceptions.RequestException as e:
         logger.critical(f"Error de red: {e}")
