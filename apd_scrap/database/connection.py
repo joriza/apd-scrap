@@ -284,31 +284,7 @@ class DatabaseConnection(LoggerMixin):
         finally:
             self.close()
 
-    def get_count(self) -> int:
-        """
-        Obtiene el número total de registros en la base de datos.
-
-        Returns:
-            int: Número total de registros en la tabla 'ofertas'.
-                Retorna 0 si hay un error o no hay registros.
-
-        Example:
-            >>> with DatabaseConnection() as db:
-            ...     db.initialize_schema()
-            ...     total = db.get_count()
-            ...     print(f"Total de registros: {total}")
-        """
-        try:
-            conn = self.connect()
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM ofertas")
-            result = cursor.fetchone()
-            return result[0] if result else 0
-        except sqlite3.Error:
-            self.logger.error("Error al obtener conteo total de registros")
-            return 0
-        finally:
-            self.close()
+    
 
     def get_distrito_count(self, distrito: str) -> int:
         """
@@ -457,7 +433,7 @@ class DatabaseConnection(LoggerMixin):
             where_sql = "".join([f" WHERE {clause}" for clause in where_clauses])
             params.extend([limit, offset])
 
-            sql = f"SELECT * FROM ofertas{where_sql} ORDER BY ige LIMIT ? OFFSET ?"
+            sql = f"SELECT ige, estado, cargo, escuela, descdistrito, iniciooferta, cupof FROM ofertas{where_sql} ORDER BY ige LIMIT ? OFFSET ?"
 
             cursor.execute(sql, params)
             rows = cursor.fetchall()
@@ -509,7 +485,7 @@ class DatabaseConnection(LoggerMixin):
             conn = self.connect()
             cursor = conn.cursor()
 
-            sql = "SELECT * FROM postulantes WHERE ige = ? ORDER BY ige LIMIT ? OFFSET ?"
+            sql = "SELECT ige, cuil, puntaje, designado, nombres, telefono, email FROM postulantes WHERE ige = ? ORDER BY ige LIMIT ? OFFSET ?"
             cursor.execute(sql, (ige, limit, offset))
             rows = cursor.fetchall()
 
@@ -554,10 +530,10 @@ class DatabaseConnection(LoggerMixin):
             cursor = conn.cursor()
 
             if distrito:
-                sql = "SELECT * FROM ofertas WHERE estado = ? AND descdistrito = ?"
+                sql = "SELECT ige, estado, cargo, escuela, descdistrito, iniciooferta, cupof FROM ofertas WHERE estado = ? AND descdistrito = ?"
                 cursor.execute(sql, (estado, distrito.upper()))
             else:
-                sql = "SELECT * FROM ofertas WHERE estado = ?"
+                sql = "SELECT ige, estado, cargo, escuela, descdistrito, iniciooferta, cupof FROM ofertas WHERE estado = ?"
                 cursor.execute(sql, (estado,))
 
             rows = cursor.fetchall()
@@ -598,7 +574,7 @@ class DatabaseConnection(LoggerMixin):
             conn = self.connect()
             cursor = conn.cursor()
 
-            sql = "SELECT * FROM postulantes WHERE ige = ? AND designado = 'S'"
+            sql = "SELECT ige, cuil, puntaje, designado, nombres, telefono, email FROM postulantes WHERE ige = ? AND designado = 'S'"
             cursor.execute(sql, (ige,))
             row = cursor.fetchone()
 
@@ -663,10 +639,10 @@ class DatabaseConnection(LoggerMixin):
             ...     batch = db.get_all_ofertas_paginated(0, 10000)
         """
         if limit is None:
-            # Obtener todos los registros sin límite
-            sql = "SELECT * FROM ofertas ORDER BY ige"
+            # Obtener todos los registros sin límite - solo columnes necesarias para exportación
+            sql = "SELECT ige, estado, cargo, escuela, descdistrito, iniciooferta, cupof, descripcionarea, descripcioncargo FROM ofertas ORDER BY ige"
         else:
-            sql = "SELECT * FROM ofertas ORDER BY ige LIMIT ? OFFSET ?"
+            sql = "SELECT ige, estado, cargo, escuela, descdistrito, iniciooferta, cupof, descripcionarea, descripcioncargo FROM ofertas ORDER BY ige LIMIT ? OFFSET ?"
             
         try:
             conn = self.connect()
@@ -709,10 +685,10 @@ class DatabaseConnection(LoggerMixin):
             ...     batch = db.get_all_postulantes_paginated(0, 10000)
         """
         if limit is None:
-            # Obtener todos los registros sin límite
-            sql = "SELECT * FROM postulantes ORDER BY ige, cuil"
+            # Obtener todos los registros sin límite - solo columnes necesarias para exportación
+            sql = "SELECT ige, cuil, puntaje, designado, nombres, telefono, email, prioridad, estadopostulacion FROM postulantes ORDER BY ige, cuil"
         else:
-            sql = "SELECT * FROM postulantes ORDER BY ige, cuil LIMIT ? OFFSET ?"
+            sql = "SELECT ige, cuil, puntaje, designado, nombres, telefono, email, prioridad, estadopostulacion FROM postulantes ORDER BY ige, cuil LIMIT ? OFFSET ?"
             
         try:
             conn = self.connect()
@@ -738,32 +714,4 @@ class DatabaseConnection(LoggerMixin):
         finally:
             self.close()
     
-    def get_distrito_count(self, distrito: str) -> int:
-        """
-        Obtiene el número de registros por distrito.
-        
-        Args:
-            distrito: Nombre del distrito (se convierte a mayúsculas)
-            
-        Returns:
-            int: Número de registros para el distrito especificado.
-                Retorna 0 si hay un error o no hay registros.
-                
-        Example:
-            >>> with DatabaseConnection() as db:
-            ...     merlo_count = db.get_distrito_count('merlo')
-            ...     print(f"Registros de Merlo: {merlo_count}")
-        """
-        try:
-            conn = self.connect()
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT COUNT(*) FROM ofertas WHERE descdistrito = ?", (distrito.upper(),)
-            )
-            result = cursor.fetchone()
-            return result[0] if result else 0
-        except sqlite3.Error:
-            self.logger.error(f"Error al obtener conteo de registros para distrito {distrito}")
-            return 0
-        finally:
-            self.close()
+    

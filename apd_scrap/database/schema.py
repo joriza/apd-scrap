@@ -186,6 +186,8 @@ CREATE_INDEXES_SQL: list[str] = [
        ON ofertas (iniciooferta);""",
     """CREATE INDEX IF NOT EXISTS idx_postulantes_ige
        ON postulantes (ige);""",
+    """CREATE INDEX IF NOT EXISTS idx_postulantes_designado
+       ON postulantes (designado);""",
 ]
 
 

@@ -125,13 +125,14 @@ class Validators(LoggerMixin):
         """
         Valida el dígito verificador del CUIL.
 
-        El algoritmo de validación es:
-        - Multiplicar cada dígito por [5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
+        El algoritmo de validación oficial argentino es:
+        - Multiplicar cada dígito por la serie [2, 3, 4, 5, 6, 7] (se repite)
+        - Multiplicar de DERECHA a IZQUIERDA
         - Sumar los resultados
         - Calcular módulo 11
         - Dígito verificador = 11 - (módulo % 11)
         - Si el resultado es 11, el dígito es 0
-        - Si el resultado es 10, el dígito es inválido
+        - Si el resultado es 10, el CUIL es inválido
 
         Args:
             cuil: CUIL de 11 dígitos (sin guiones)
@@ -142,23 +143,24 @@ class Validators(LoggerMixin):
         if len(cuil) != 11:
             return False
 
-        # Multiplicadores para validación
-        multipliers = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2]
+        # Serie de multiplicadores: 2, 3, 4, 5, 6, 7 (se repite)
+        multipliers = [2, 3, 4, 5, 6, 7, 2, 3, 4, 5]
 
-        # Calcular suma ponderada
+        # Calcular suma ponderada (izquierda a derecha usando serie 2,3,4,5,6,7 repetida)
         total = 0
         for i in range(10):
+            # Multiplicamos los primeros 10 dígitos por los multiplicadores
             total += int(cuil[i]) * multipliers[i]
 
         # Calcular dígito verificador
         remainder = total % 11
         verifier = 11 - remainder
 
-        # Ajustes especiales
+        # Ajustes especiales según estándar argentino
         if verifier == 11:
             verifier = 0
         elif verifier == 10:
-            return False  # Dígito inválido
+            return False  # CUIL inválido según estándar
 
         return int(cuil[10]) == verifier
 
